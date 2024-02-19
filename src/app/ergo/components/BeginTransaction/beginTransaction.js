@@ -31,14 +31,16 @@ const metalMap = {
 
 return (
 <div>
-    <div className="card w-96 bg-white shadow-xl">
-        <figure className="w-48 h-48 px-5 pt-5 mx-auto">
-            <img src="ergo-image.png" alt="Shoes" className="rounded-xl" />
-        </figure>
-        <h2 className="text-center">ErgoNames</h2>
-
+    <div className="card w-96 bg-white shadow-xl text-center">
+        <div className="card card-compact w-40 h-40 m-auto bg-black border mt-10 mb-5">
+            <div className="card-body">
+                <div className="flex items-center m-auto bg-black text-white">
+                        <p><span className='font-black text-customOrange'>~</span> {name}</p>
+                </div>
+            </div>
+        </div>
+        <h2 className="text-center">Preview</h2>
         <div className="card-body align-center justify-center text-center">
-
             <div className="card card-compact w-80 bg-white shadow-l border my-2">
                 <div className="card-body">
                     <div className="flex items-center justify-between bg-white text-black">
@@ -46,7 +48,7 @@ return (
                             <p>Name</p>
                         </div>
                         <div className="flex-none">
-                            <p>{name}.eth</p>
+                            <p>{name}</p>
                         </div>
                     </div>
                 </div>
