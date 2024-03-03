@@ -18,10 +18,13 @@ function Searchbar() {
             );
             const data = await res.json();
             
-            setIsAvailable(data.length == 0);
+            setIsAvailable(data.isValid && data.isAvailable);
+            if(data.isValid && data.isAvailable) {
+                localStorage.setItem('mintCost', data.mintCost);
+                localStorage.setItem('transactionFee', data.transactionFee);
+            }
             // debugger;
-
-            console.log(data);
+            // console.log(data);
         } catch (err) {
             console.log(err);
         }

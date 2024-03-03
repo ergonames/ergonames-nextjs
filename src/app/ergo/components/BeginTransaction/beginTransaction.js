@@ -6,6 +6,8 @@ function BeginTransaction({onComplete}){
 
 const name = localStorage.getItem('searchInput');
 const tier = localStorage.getItem('tier');
+const mintCost = localStorage.getItem('mintCost');
+const transactionFee = localStorage.getItem('transactionFee');
 const validateCurrentStep = async () =>{
 let isWalletConnected = await ergoConnector.nautilus.isConnected();
 return isWalletConnected;
@@ -69,10 +71,22 @@ return (
                 <div className="card-body">
                     <div className="flex items-center justify-between bg-white text-black">
                         <div className="flex-none">
-                            <p>Info</p>
+                            <p>Mint Cost</p>
                         </div>
                         <div className="flex-none">
-                            <p>10 ERG</p>
+                            <p>{mintCost} ERG</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div className="card card-compact w-80 bg-white shadow-l border my-2">
+                <div className="card-body">
+                    <div className="flex items-center justify-between bg-white text-black">
+                        <div className="flex-none">
+                            <p>Transaction Fee</p>
+                        </div>
+                        <div className="flex-none">
+                            <p>{transactionFee * 7} ERG</p>
                         </div>
                     </div>
                 </div>

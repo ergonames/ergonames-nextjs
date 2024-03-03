@@ -2,6 +2,12 @@ import { toast, ToastContainer } from 'react-toastify';
 import Steps from '../Common/steps';
 import Fees from '../Common/fees';
 import Time from '../Common/time';
+
+const mintCost = localStorage.getItem('mintCost');
+const transactionFee = localStorage.getItem('transactionFee');
+const totalMintingCost = parseInt(mintCost) + 7 * transactionFee;
+// debugger;
+
 function ProcessOverview({onComplete,onBack}){
 const validateCurrentStep = async () =>{
 let isWalletConnected = await ergoConnector.nautilus.connect();
@@ -19,15 +25,15 @@ toast.warn("Please connect with Wallet to proceed");
 return (
 <div>
     <div className="bg-white p-2 rounded-lg shadow-md">
-        <p className='text-black text-center text-lg font-bold'> Before we Start</p>
-        <p className='text-black text-center text-sm'>Registering your name takes four steps</p>
+        <p className='text-black text-center text-lg font-bold'> Before we Start </p>
+        <p className='text-black text-center text-sm'> Registering your name takes four steps </p>
         <p className='text-black text-center text-lg font-bold '> Steps</p>
         <Steps/>
-        <p className='text-black text-center text-lg font-bold '>Fees</p>
-        <Fees/>
         <p className='text-black text-center text-lg font-bold '>Time</p>
         <Time/>
-        <p className='text-black text-center text-xl font-extrabold'><b>Total Minting Cost: 5.012 ERG</b></p>
+        <p className='text-black text-center text-lg font-bold '>Cost</p>
+        <Fees/>
+        <p className='text-black text-center text-xl font-extrabold'><b>Total Minting Cost: {totalMintingCost} ERG</b></p>
         <div className="flex flex-col justify-center">
             <div className="flex justify-center my-4">
                 <button className="flex bg-customOrange text-white text-sm p-2 rounded-l-md focus:outline-none">
