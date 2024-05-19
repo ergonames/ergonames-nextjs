@@ -16,7 +16,7 @@ const ErgoPayButton = ({
   isMainnet,
 }: any) => {
   useEffect(() => {
-    let intervalId: string | number | NodeJS.Timer | undefined;
+    let intervalId: string | number | NodeJS.Timeout | undefined;
 
     if (activeKey === "2") {
       intervalId = setInterval(() => {

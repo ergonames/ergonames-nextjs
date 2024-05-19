@@ -63,11 +63,12 @@ function CommitFee(){
         const walletConfig = getWalletConfig();
 
         if (localStorageKeyExists("transactionFee")) {
-          txOperatorFee = BigInt(parseInt(localStorage.getItem("transactionFee")*NANOERG_TO_ERG)!);
+            debugger;
+        txOperatorFee = BigInt(parseInt(localStorage.getItem("transactionFee"))*NANOERG_TO_ERG);
         }
 
         if (localStorageKeyExists("transactionFee")) {
-          minerFee = BigInt(parseInt(localStorage.getItem("transactionFee")*NANOERG_TO_ERG)!);
+          minerFee = BigInt(parseInt(localStorage.getItem("transactionFee"))*NANOERG_TO_ERG);
         }
 
         if (!(await checkWalletConnection(walletConfig))) {
@@ -200,7 +201,9 @@ function CommitFee(){
             console.log(url);
             setErgoPayTxId(txId!);
             setErgoPayLink(url);
-            window.document.documentElement.classList.add("overflow-hidden");
+            if (typeof window !== "undefined") {
+                window.document.documentElement.classList.add("overflow-hidden");
+            };
             setIsModalErgoPayOpen(true);
             toast.dismiss();
             return;
@@ -216,7 +219,7 @@ function CommitFee(){
     };
 
     const name = localStorage.getItem('searchInput');
-    const transactionFee = localStorage.getItem('transactionFee');
+    const transactionFee = parseInt(localStorage.getItem('transactionFee'));
 
     return (
             <div className="flex flex-col items-center justify-center">

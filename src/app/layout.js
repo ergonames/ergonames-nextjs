@@ -4,6 +4,10 @@ import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
+if (!window) {
+    require('localstorage-polyfill');
+};
+
 export const metadata = {
   title: 'ErgoNames',
   description: 'Decentralised identity solution on Ergo blockchain',
