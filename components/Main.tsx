@@ -50,9 +50,11 @@ const Main = () => {
   }, []);
 
   useEffect(() => {
-    const isMainnet = localStorage.getItem("IsMainnet")
-      ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
-      : true;
+    // const isMainnet = localStorage.getItem("IsMainnet")
+    //   ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
+    //   : true;
+
+    const isMainnet = false;
 
     setIsMainnet(isMainnet);
 
@@ -64,9 +66,10 @@ const Main = () => {
   }, []);
 
   useEffect(() => {
-    const isMainnet = localStorage.getItem("IsMainnet")
-      ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
-      : true;
+    // const isMainnet = localStorage.getItem("IsMainnet")
+    //   ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
+    //   : true;
+    const isMainnet = false;
 
     // console.log(BANK_SINGLETON_TOKEN_ID(isMainnet));
     explorerClient(isMainnet)

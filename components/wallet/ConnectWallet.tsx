@@ -147,17 +147,19 @@ const ConnectWallet: React.FC<IProps> = (props) => {
   }, [walletConnected]);
 
   useEffect(() => {
-    const isMainnet = localStorage.getItem("IsMainnet")
-      ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
-      : true;
+    // const isMainnet = localStorage.getItem("IsMainnet")
+    //   ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
+    //   : true;
+    const isMainnet = false;
 
     setIsMainnet(isMainnet);
 
-    const walletConfig = localStorage.getItem("walletConfig")
-      ? (JSON.parse(
-          localStorage.getItem("walletConfig")!
-        ) as walletLocalStorage)
-      : undefined;
+    const walletConfig = null;
+    // const walletConfig = localStorage.getItem("walletConfig")
+    //   ? (JSON.parse(
+    //       localStorage.getItem("walletConfig")!
+    //     ) as walletLocalStorage)
+    //   : undefined;
 
     if (walletConfig) {
       setWalletConnected(walletConfig.walletConnected);

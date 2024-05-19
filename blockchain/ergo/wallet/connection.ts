@@ -50,7 +50,7 @@ export async function connectNautilusWallet(setWalletConnected: React.Dispatch<R
         walletAddress: uniqueAddresses
       }
 
-      localStorage.setItem("walletConfig", JSON.stringify(walletStorageConf));
+      // localStorage.setItem("walletConfig", JSON.stringify(walletStorageConf));
       setWalletConnected(true);
       setWalletName('nautilus');
       setWalletAddress(uniqueAddresses);
@@ -85,7 +85,7 @@ export function connectErgoPayWallet(address: string, setWalletConnected: React.
     walletAddress: [address]
   }
 
-  localStorage.setItem("walletConfig", JSON.stringify(walletStorageConf));
+  // localStorage.setItem("walletConfig", JSON.stringify(walletStorageConf));
   setWalletConnected(true);
   setWalletName('ergopay');
   setWalletAddress([address]);
@@ -99,7 +99,7 @@ export function connectErgoPayWallet(address: string, setWalletConnected: React.
 
 
 export function disconnectWallet(setWalletConnected: React.Dispatch<React.SetStateAction<boolean | undefined>>, walletName: string | undefined, setWalletName: React.Dispatch<React.SetStateAction<string | undefined>>, setWalletAddress: React.Dispatch<React.SetStateAction<string[] | undefined>>): void {
-  localStorage.removeItem('walletConfig');
+  // localStorage.removeItem('walletConfig');
   sessionStorage.removeItem('uuid');
 
   setWalletConnected(false);

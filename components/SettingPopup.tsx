@@ -19,7 +19,8 @@ export default function SettingPopup() {
     if (localStorageKeyExists("txOperatorFee")) {
       setNitroValue(
         Number(
-          Number(localStorage.getItem("txOperatorFee")!) /
+          // Number(localStorage.getItem("txOperatorFee")!) /
+          Number(0) /
             Number(MIN_TX_OPERATOR_FEE)
         ).toFixed(3)
       );
@@ -27,7 +28,9 @@ export default function SettingPopup() {
     if (localStorageKeyExists("minerFee")) {
       setMinerNitroValue(
         Number(
-          Number(localStorage.getItem("minerFee")!) / Number(MIN_MINER_FEE)
+          // Number(localStorage.getItem("minerFee")!) / 
+          Number(0) / 
+            Number(MIN_MINER_FEE)
         ).toFixed(3)
       );
     }
@@ -42,7 +45,7 @@ export default function SettingPopup() {
       (BigInt(MIN_TX_OPERATOR_FEE) * BigInt(nitroValue * 1e3)) / BigInt(1e3);
 
     setNitroValue(nitroValue);
-    localStorage.setItem("txOperatorFee", txOperatorFee.toString());
+    // localStorage.setItem("txOperatorFee", txOperatorFee.toString());
   };
 
   const handleMinerNitro = (nitroValue: number) => {
@@ -55,7 +58,7 @@ export default function SettingPopup() {
       (BigInt(MIN_MINER_FEE) * BigInt(nitroValue * 1e3)) / BigInt(1e3);
 
     setMinerNitroValue(nitroValue);
-    localStorage.setItem("minerFee", minerFee.toString());
+    // localStorage.setItem("minerFee", minerFee.toString());
   };
 
   return (
@@ -96,10 +99,10 @@ export default function SettingPopup() {
                     <button
                       className="focus:outline-none text-white primary-gradient hover:opacity-80 focus:ring-4 focus:ring-purple-300 font-medium rounded-md text-md px-3 sm:px-5 py-2 sm:py-2.5"
                       onClick={() => {
-                        localStorage.setItem(
-                          "txOperatorFee",
-                          MIN_TX_OPERATOR_FEE.toString()
-                        );
+                        // localStorage.setItem(
+                        //   "txOperatorFee",
+                        //   MIN_TX_OPERATOR_FEE.toString()
+                        // );
                         setNitroValue("1.000");
                       }}
                     >
@@ -135,10 +138,10 @@ export default function SettingPopup() {
                     <button
                       className="focus:outline-none text-white primary-gradient hover:opacity-80 focus:ring-4 focus:ring-purple-300 font-medium rounded-md text-md px-3 sm:px-5 py-2 sm:py-2.5"
                       onClick={() => {
-                        localStorage.setItem(
-                          "minerFee",
-                          MIN_MINER_FEE.toString()
-                        );
+                        // localStorage.setItem(
+                        //   "minerFee",
+                        //   MIN_MINER_FEE.toString()
+                        // );
                         setMinerNitroValue("1.000");
                       }}
                     >

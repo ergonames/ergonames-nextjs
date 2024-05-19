@@ -37,7 +37,7 @@ function Connector() {
       const connected = await ergoConnector.nautilus.connect(); 
       if (connected) {
         console.log("Connected!");
-        localStorage.setItem("walletConnected", true);
+        // localStorage.setItem("walletConnected", true);
         setIsConnected(true);
         getErgoBalance();
         toast.success("Connected");
@@ -48,7 +48,7 @@ function Connector() {
     const nautilusDisconnector = async ()=>{
         setIsConnected(false);
         const disconnected = await ergoConnector.nautilus.disconnect();
-        localStorage.setItem("walletConnected", false);
+        // localStorage.setItem("walletConnected", false);
         toast.success("disconnected");
     }
     return (

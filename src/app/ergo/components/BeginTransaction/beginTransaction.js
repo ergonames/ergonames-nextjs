@@ -4,10 +4,14 @@ import { toast, ToastContainer } from 'react-toastify';
 import "react-toastify/dist/ReactToastify.css";
 function BeginTransaction({onComplete}){
 
-const name = localStorage.getItem('searchInput');
-const tier = localStorage.getItem('tier');
-const mintCost = localStorage.getItem('mintCost');
-const transactionFee = localStorage.getItem('transactionFee');
+const name = null;
+const tier = null;
+const mintCost = null;
+const transactionFee = null;
+// const name = localStorage.getItem('searchInput');
+// const tier = localStorage.getItem('tier');
+// const mintCost = localStorage.getItem('mintCost');
+// const transactionFee = localStorage.getItem('transactionFee');
 const validateCurrentStep = async () =>{
 let isWalletConnected = await ergoConnector.nautilus.isConnected();
 return isWalletConnected;

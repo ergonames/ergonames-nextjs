@@ -38,9 +38,10 @@ const Refund = () => {
   const [ergoPayTxId, setErgoPayTxId] = useState<string>("");
 
   useEffect(() => {
-    const isMainnet = localStorage.getItem("IsMainnet")
-        ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
-        : true;
+    // const isMainnet = localStorage.getItem("IsMainnet")
+    //     ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
+    //     : true;
+    const isMainnet = false;
 
     setIsMainnet(isMainnet);
   }, []);

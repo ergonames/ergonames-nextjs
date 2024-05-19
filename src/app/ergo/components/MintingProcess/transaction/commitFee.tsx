@@ -64,11 +64,13 @@ function CommitFee(){
 
         if (localStorageKeyExists("transactionFee")) {
             debugger;
-        txOperatorFee = BigInt(parseInt(localStorage.getItem("transactionFee"))*NANOERG_TO_ERG);
+        // txOperatorFee = BigInt(parseInt(localStorage.getItem("transactionFee"))*NANOERG_TO_ERG);
+            txOperatorFee = BigInt(0);
         }
 
         if (localStorageKeyExists("transactionFee")) {
-          minerFee = BigInt(parseInt(localStorage.getItem("transactionFee"))*NANOERG_TO_ERG);
+          // minerFee = BigInt(parseInt(localStorage.getItem("transactionFee"))*NANOERG_TO_ERG);
+            minerFee = BigInt(0);
         }
 
         if (!(await checkWalletConnection(walletConfig))) {
@@ -122,7 +124,8 @@ function CommitFee(){
         const secretString = "secret";
         const secretStringHash = blake2b256(utf8.decode(secretString));
 
-        const nameToRegisterBytes = utf8.decode(localStorage.getItem('searchInput'));
+        // const nameToRegisterBytes = utf8.decode(localStorage.getItem('searchInput'));
+        const nameToRegisterBytes = [];
         debugger;
 
         const commitmentSecret = new Uint8Array([...secretStringHash, ...receiverErgoTreeBytes, ...nameToRegisterBytes]);
@@ -218,8 +221,10 @@ function CommitFee(){
         }
     };
 
-    const name = localStorage.getItem('searchInput');
-    const transactionFee = parseInt(localStorage.getItem('transactionFee'));
+    // const name = localStorage.getItem('searchInput');
+    // const transactionFee = parseInt(localStorage.getItem('transactionFee'));
+    const name = '';
+    const transactionFee = 0;
 
     return (
             <div className="flex flex-col items-center justify-center">

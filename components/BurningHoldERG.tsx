@@ -55,9 +55,10 @@ const BurningHoldERG = () => {
   const [ergoPayTxId, setErgoPayTxId] = useState<string>("");
 
   useEffect(() => {
-    const isMainnet = localStorage.getItem("IsMainnet")
-      ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
-      : true;
+    // const isMainnet = localStorage.getItem("IsMainnet")
+    //   ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
+    //   : true;
+    const isMainnet = false;
 
     setIsMainnet(isMainnet);
     setProxyAddress(PROXY_ADDRESS(isMainnet));
@@ -102,11 +103,11 @@ const BurningHoldERG = () => {
     const walletConfig = getWalletConfig();
 
     if (localStorageKeyExists("txOperatorFee")) {
-      txOperatorFee = BigInt(localStorage.getItem("txOperatorFee")!);
+      // txOperatorFee = BigInt(localStorage.getItem("txOperatorFee")!);
     }
 
     if (localStorageKeyExists("minerFee")) {
-      minerFee = BigInt(localStorage.getItem("minerFee")!);
+      // minerFee = BigInt(localStorage.getItem("minerFee")!);
     }
 
     if (!(await checkWalletConnection(walletConfig))) {

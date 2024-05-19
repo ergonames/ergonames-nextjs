@@ -50,18 +50,19 @@ const DropDown: React.FC = () => {
     const selectedTitle = e.item?.props?.title;
 
     if (!selectedTitle || selectedTitle === "Ergo") {
-      localStorage.setItem("IsMainnet", "true");
+      // localStorage.setItem("IsMainnet", "true");
     } else {
-      localStorage.setItem("IsMainnet", "false");
+      // localStorage.setItem("IsMainnet", "false");
     }
 
     setValue(selectedTitle);
-    localStorage.removeItem("walletConfig");
+    // localStorage.removeItem("walletConfig");
     window.location.reload();
   };
 
   useEffect(() => {
-    const isMainnet = localStorage.getItem("IsMainnet");
+    // const isMainnet = localStorage.getItem("IsMainnet");
+    const isMainnet = false;
 
     if (!isMainnet || isMainnet === "true") {
       setValue("Ergo");

@@ -20,8 +20,8 @@ function Searchbar() {
             
             setIsAvailable(data.isValid && data.isAvailable);
             if(data.isValid && data.isAvailable) {
-                localStorage.setItem('mintCost', data.mintCost);
-                localStorage.setItem('transactionFee', data.transactionFee);
+                // localStorage.setItem('mintCost', data.mintCost);
+                // localStorage.setItem('transactionFee', data.transactionFee);
             }
             // debugger;
             // console.log(data);
@@ -45,8 +45,8 @@ function Searchbar() {
     const handleSearchClick = (event) => {
         setToSearchInput(searchInput);
         callAPI();
-        localStorage.setItem('searchInput', searchInput);
-        localStorage.setItem('tier', getTierFromLength(searchInput) );
+        // localStorage.setItem('searchInput', searchInput);
+        // localStorage.setItem('tier', getTierFromLength(searchInput) );
         setTier(getTierFromLength(searchInput));
     };
     // const condition = image ? 'flex' : 'flex-none sm:flex'

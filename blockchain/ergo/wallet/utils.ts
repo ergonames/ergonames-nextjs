@@ -21,11 +21,12 @@ export const handleCopyText = (e: string) => {
 };
 
 export const getWalletConfig = () => {
-  return localStorage.getItem('walletConfig')
-      ? (JSON.parse(
-          localStorage.getItem('walletConfig')!,
-      ) as walletLocalStorage)
-      : undefined;
+  return undefined;
+  // return localStorage.getItem('walletConfig')
+  //     ? (JSON.parse(
+  //         localStorage.getItem('walletConfig')!,
+  //     ) as walletLocalStorage)
+  //     : undefined;
 }
 
 export async function rateLimitedCoinGeckoERGUSD(): Promise<

@@ -56,9 +56,10 @@ const MintingHodlERG = () => {
   const [ergoPayTxId, setErgoPayTxId] = useState<string>("");
 
   useEffect(() => {
-    const isMainnet = localStorage.getItem("IsMainnet")
-      ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
-      : true;
+    // const isMainnet = localStorage.getItem("IsMainnet")
+    //   ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
+    //   : true;
+    const isMainnet = false;
 
     setIsMainnet(isMainnet);
     setCommitmentContract(COMMITMENT_CONTRACT(isMainnet));
@@ -100,11 +101,11 @@ const MintingHodlERG = () => {
     const walletConfig = getWalletConfig();
 
     if (localStorageKeyExists("txOperatorFee")) {
-      txOperatorFee = BigInt(localStorage.getItem("txOperatorFee")!);
+      // BigInt(localStorage.getItem("txOperatorFee")!);
     }
 
     if (localStorageKeyExists("minerFee")) {
-      minerFee = BigInt(localStorage.getItem("minerFee")!);
+      // BigInt(localStorage.getItem("minerFee")!);
     }
 
     if (!(await checkWalletConnection(walletConfig))) {

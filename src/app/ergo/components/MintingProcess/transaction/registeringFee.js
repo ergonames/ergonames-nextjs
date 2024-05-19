@@ -1,5 +1,6 @@
 function RegisteringFee(){
-    const name = localStorage.getItem('searchInput');
+    // const name = localStorage.getItem('searchInput');
+    const name = "";
     return (
         <div className="flex flex-col items-center justify-center">
            <img src="Wallet.png" // Replace with the actual path to your image alt="Image 1"

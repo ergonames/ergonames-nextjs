@@ -1,0 +1,1226 @@
+diff --git i/blockchain/ergo/constants.ts w/blockchain/ergo/constants.ts
+index 99fef0a..a2421d9 100644
+--- i/blockchain/ergo/constants.ts
++++ w/blockchain/ergo/constants.ts
+@@ -3,33 +3,29 @@ import {ErgoAddress, Network} from "@fleet-sdk/core";
+ 
+ 
+ export const NODE_API_URL = (isMainnet: boolean): string => (
+-    isMainnet
+-        ? process.env.NEXT_PUBLIC_MAINNET_NODE_URL
+-        : process.env.NEXT_PUBLIC_TESTNET_NODE_URL
++    ""
+ )!?.replace(/[\\/]+$/, '');
+ export const EXPLORER_API_URL = (isMainnet: boolean): string => (
+-    isMainnet
+-        ? process.env.NEXT_PUBLIC_MAINNET_API_URL
+-        : process.env.NEXT_PUBLIC_TESTNET_API_URL
++    ""
+ )!?.replace(/[\\/]+$/, '');
+ export const EXPLORER_URL = (isMainnet: boolean): string => (
+-    isMainnet
+-        ? process.env.NEXT_PUBLIC_MAINNET_EXPLORER_URL
+-        : process.env.NEXT_PUBLIC_TESTNET_EXPLORER_URL
++    ""
+ )!?.replace(/[\\/]+$/, '');
+ 
+ export const PROXY_ADDRESS = (isMainnet: boolean): string => {
+-    const ergoTree = process.env.NEXT_PUBLIC_PROXY_ERGO_TREE!;
++    // const ergoTree = process.env.NEXT_PUBLIC_PROXY_ERGO_TREE!;
++    const ergoTree = "";
+     return isMainnet ? ErgoAddress.fromErgoTree(ergoTree, Network.Mainnet).toString() : ErgoAddress.fromErgoTree(ergoTree, Network.Testnet).toString();
+ }
+ export const COMMITMENT_CONTRACT = (isMainnet: boolean): string => {
+-    const ergoTree = process.env.NEXT_PUBLIC_COMMITMENT_CONTRACT!;
++    // const ergoTree = process.env.NEXT_PUBLIC_COMMITMENT_CONTRACT!;
++    const ergoTree = "";
+     return isMainnet ? ErgoAddress.fromErgoTree(ergoTree, Network.Mainnet).toString() : ErgoAddress.fromErgoTree(ergoTree, Network.Testnet).toString();
+ }
+-export const HODL_ERG_TOKEN_ID = (isMainnet: boolean): string => isMainnet ? process.env.NEXT_PUBLIC_MAINNET_HODL_ERG! : process.env.NEXT_PUBLIC_TESTNET_HODL_ERG!;
+-export const BANK_SINGLETON_TOKEN_ID = (isMainnet: boolean): string => isMainnet ? process.env.NEXT_PUBLIC_MAINNET_BANK_SINGLETON! : process.env.NEXT_PUBLIC_TESTNET_BANK_SINGLETON!;
+-export const MIN_TX_OPERATOR_FEE = process.env.NEXT_PUBLIC_MIN_TX_OPERATOR_FEE!;
+-export const MIN_MINER_FEE = BigInt(process.env.NEXT_PUBLIC_MIN_MINER_FEE!);
++export const HODL_ERG_TOKEN_ID = (isMainnet: boolean): string => "";
++export const BANK_SINGLETON_TOKEN_ID = (isMainnet: boolean): string => "";
++export const MIN_TX_OPERATOR_FEE = 1;
++export const MIN_MINER_FEE = BigInt(1);
+ 
+ export const UIMultiplier: bigint = BigInt(1e9);
+ export const precisionBigInt: bigint = BigInt(1000000);
+@@ -45,7 +41,5 @@ export const explorerClient = (isMainnet: boolean) => {
+     return DefaultApiFactory(explorerConf);
+ }
+ export const NEXT_PUBLIC_NEST_API_URL = (isMainnet: boolean) =>  (
+-    isMainnet
+-        ? process.env.NEXT_PUBLIC_NEST_MAINNET_API
+-        : process.env.NEXT_PUBLIC_NEST_TESTNET_API
+-)!?.replace(/[\\/]+$/, '');
+\ No newline at end of file
++    ""
++)!?.replace(/[\\/]+$/, '');
+diff --git i/blockchain/ergo/wallet/connection.ts w/blockchain/ergo/wallet/connection.ts
+index 0300f38..0a1dc4e 100644
+--- i/blockchain/ergo/wallet/connection.ts
++++ w/blockchain/ergo/wallet/connection.ts
+@@ -50,7 +50,7 @@ export async function connectNautilusWallet(setWalletConnected: React.Dispatch<R
+         walletAddress: uniqueAddresses
+       }
+ 
+-      localStorage.setItem("walletConfig", JSON.stringify(walletStorageConf));
++      // localStorage.setItem("walletConfig", JSON.stringify(walletStorageConf));
+       setWalletConnected(true);
+       setWalletName('nautilus');
+       setWalletAddress(uniqueAddresses);
+@@ -85,7 +85,7 @@ export function connectErgoPayWallet(address: string, setWalletConnected: React.
+     walletAddress: [address]
+   }
+ 
+-  localStorage.setItem("walletConfig", JSON.stringify(walletStorageConf));
++  // localStorage.setItem("walletConfig", JSON.stringify(walletStorageConf));
+   setWalletConnected(true);
+   setWalletName('ergopay');
+   setWalletAddress([address]);
+@@ -99,7 +99,7 @@ export function connectErgoPayWallet(address: string, setWalletConnected: React.
+ 
+ 
+ export function disconnectWallet(setWalletConnected: React.Dispatch<React.SetStateAction<boolean | undefined>>, walletName: string | undefined, setWalletName: React.Dispatch<React.SetStateAction<string | undefined>>, setWalletAddress: React.Dispatch<React.SetStateAction<string[] | undefined>>): void {
+-  localStorage.removeItem('walletConfig');
++  // localStorage.removeItem('walletConfig');
+   sessionStorage.removeItem('uuid');
+ 
+   setWalletConnected(false);
+@@ -110,4 +110,4 @@ export function disconnectWallet(setWalletConnected: React.Dispatch<React.SetSta
+     ergoConnector!.nautilus!.disconnect();
+   }
+ 
+-}
+\ No newline at end of file
++}
+diff --git i/blockchain/ergo/wallet/utils.ts w/blockchain/ergo/wallet/utils.ts
+index 346e9d9..c183c1d 100644
+--- i/blockchain/ergo/wallet/utils.ts
++++ w/blockchain/ergo/wallet/utils.ts
+@@ -21,11 +21,12 @@ export const handleCopyText = (e: string) => {
+ };
+ 
+ export const getWalletConfig = () => {
+-  return localStorage.getItem('walletConfig')
+-      ? (JSON.parse(
+-          localStorage.getItem('walletConfig')!,
+-      ) as walletLocalStorage)
+-      : undefined;
++  return undefined;
++  // return localStorage.getItem('walletConfig')
++  //     ? (JSON.parse(
++  //         localStorage.getItem('walletConfig')!,
++  //     ) as walletLocalStorage)
++  //     : undefined;
+ }
+ 
+ export async function rateLimitedCoinGeckoERGUSD(): Promise<
+@@ -174,4 +175,4 @@ export async function getInputBoxes(
+   }
+ 
+   throw new Error("insufficient inputs");
+-}
+\ No newline at end of file
++}
+diff --git i/common/utils.ts w/common/utils.ts
+index 5338a30..fd968a5 100644
+--- i/common/utils.ts
++++ w/common/utils.ts
+@@ -3,6 +3,6 @@ export function hasDecimals(num: number): boolean {
+ }
+ 
+ export function localStorageKeyExists(key: string): boolean {
+-    const value = localStorage.getItem(key);
+-    return value !== null;
+-}
+\ No newline at end of file
++    // const value = localStorage.getItem(key);
++    return null;
++}
+diff --git i/components/BurningHoldERG.tsx w/components/BurningHoldERG.tsx
+index dee6f00..58cea5f 100644
+--- i/components/BurningHoldERG.tsx
++++ w/components/BurningHoldERG.tsx
+@@ -55,9 +55,10 @@ const BurningHoldERG = () => {
+   const [ergoPayTxId, setErgoPayTxId] = useState<string>("");
+ 
+   useEffect(() => {
+-    const isMainnet = localStorage.getItem("IsMainnet")
+-      ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
+-      : true;
++    // const isMainnet = localStorage.getItem("IsMainnet")
++    //   ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
++    //   : true;
++    const isMainnet = false;
+ 
+     setIsMainnet(isMainnet);
+     setProxyAddress(PROXY_ADDRESS(isMainnet));
+@@ -102,11 +103,11 @@ const BurningHoldERG = () => {
+     const walletConfig = getWalletConfig();
+ 
+     if (localStorageKeyExists("txOperatorFee")) {
+-      txOperatorFee = BigInt(localStorage.getItem("txOperatorFee")!);
++      // txOperatorFee = BigInt(localStorage.getItem("txOperatorFee")!);
+     }
+ 
+     if (localStorageKeyExists("minerFee")) {
+-      minerFee = BigInt(localStorage.getItem("minerFee")!);
++      // minerFee = BigInt(localStorage.getItem("minerFee")!);
+     }
+ 
+     if (!(await checkWalletConnection(walletConfig))) {
+diff --git i/components/KnowYourAssumptionsModal.tsx w/components/KnowYourAssumptionsModal.tsx
+index ddb383a..9d0f120 100644
+--- i/components/KnowYourAssumptionsModal.tsx
++++ w/components/KnowYourAssumptionsModal.tsx
+@@ -7,7 +7,7 @@ export default function KnowYourAssumptionsModal() {
+ 
+   function closeModal() {
+     setIsOpen(false);
+-    localStorage.setItem(KYA_STORAGE_KEY, "true");
++    // localStorage.setItem(KYA_STORAGE_KEY, "true");
+   }
+ 
+   function openModal() {
+@@ -15,7 +15,8 @@ export default function KnowYourAssumptionsModal() {
+   }
+ 
+   useEffect(() => {
+-    const isKYAAccepted = localStorage.getItem(KYA_STORAGE_KEY);
++    // const isKYAAccepted = localStorage.getItem(KYA_STORAGE_KEY);
++    const isKYAAccepted = false;
+     if (!isKYAAccepted) {
+       setIsOpen(true);
+     }
+diff --git i/components/Main.tsx w/components/Main.tsx
+index 14f7525..610cd65 100644
+--- i/components/Main.tsx
++++ w/components/Main.tsx
+@@ -50,9 +50,11 @@ const Main = () => {
+   }, []);
+ 
+   useEffect(() => {
+-    const isMainnet = localStorage.getItem("IsMainnet")
+-      ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
+-      : true;
++    // const isMainnet = localStorage.getItem("IsMainnet")
++    //   ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
++    //   : true;
++
++    const isMainnet = false;
+ 
+     setIsMainnet(isMainnet);
+ 
+@@ -64,9 +66,10 @@ const Main = () => {
+   }, []);
+ 
+   useEffect(() => {
+-    const isMainnet = localStorage.getItem("IsMainnet")
+-      ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
+-      : true;
++    // const isMainnet = localStorage.getItem("IsMainnet")
++    //   ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
++    //   : true;
++    const isMainnet = false;
+ 
+     // console.log(BANK_SINGLETON_TOKEN_ID(isMainnet));
+     explorerClient(isMainnet)
+diff --git i/components/MintingHodlERG.tsx w/components/MintingHodlERG.tsx
+index 002249d..3349c3a 100644
+--- i/components/MintingHodlERG.tsx
++++ w/components/MintingHodlERG.tsx
+@@ -56,9 +56,10 @@ const MintingHodlERG = () => {
+   const [ergoPayTxId, setErgoPayTxId] = useState<string>("");
+ 
+   useEffect(() => {
+-    const isMainnet = localStorage.getItem("IsMainnet")
+-      ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
+-      : true;
++    // const isMainnet = localStorage.getItem("IsMainnet")
++    //   ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
++    //   : true;
++    const isMainnet = false;
+ 
+     setIsMainnet(isMainnet);
+     setCommitmentContract(COMMITMENT_CONTRACT(isMainnet));
+@@ -100,11 +101,11 @@ const MintingHodlERG = () => {
+     const walletConfig = getWalletConfig();
+ 
+     if (localStorageKeyExists("txOperatorFee")) {
+-      txOperatorFee = BigInt(localStorage.getItem("txOperatorFee")!);
++      // BigInt(localStorage.getItem("txOperatorFee")!);
+     }
+ 
+     if (localStorageKeyExists("minerFee")) {
+-      minerFee = BigInt(localStorage.getItem("minerFee")!);
++      // BigInt(localStorage.getItem("minerFee")!);
+     }
+ 
+     if (!(await checkWalletConnection(walletConfig))) {
+diff --git i/components/Refund.tsx w/components/Refund.tsx
+index 280e408..658e60c 100644
+--- i/components/Refund.tsx
++++ w/components/Refund.tsx
+@@ -38,9 +38,10 @@ const Refund = () => {
+   const [ergoPayTxId, setErgoPayTxId] = useState<string>("");
+ 
+   useEffect(() => {
+-    const isMainnet = localStorage.getItem("IsMainnet")
+-        ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
+-        : true;
++    // const isMainnet = localStorage.getItem("IsMainnet")
++    //     ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
++    //     : true;
++    const isMainnet = false;
+ 
+     setIsMainnet(isMainnet);
+   }, []);
+@@ -356,4 +357,4 @@ const Refund = () => {
+   );
+ };
+ 
+-export default Refund;
+\ No newline at end of file
++export default Refund;
+diff --git i/components/Requirements/Requirements.tsx w/components/Requirements/Requirements.tsx
+index cc377a2..2e4b5eb 100644
+--- i/components/Requirements/Requirements.tsx
++++ w/components/Requirements/Requirements.tsx
+@@ -69,9 +69,11 @@ export const ErgoDappConnector = (props: any) => {
+   }, []);
+ 
+   useEffect(() => {
+-    const checkWallet = localStorage.getItem('walletConnected');
++    // const checkWallet = localStorage.getItem('walletConnected');
++    const checkWallet = 'true';
+     if (checkWallet === 'true') {
+-      const whichWallet = localStorage.getItem('walletUsed');
++      // const whichWallet = localStorage.getItem('walletUsed');
++      const whichWallet = 'nautilus';
+       console.log(whichWallet);
+       if (whichWallet === 'nautilus') {
+         setDefaultAddress('');
+@@ -89,16 +91,16 @@ export const ErgoDappConnector = (props: any) => {
+               setWalletConnected(false);
+             }
+           });
+-        setDefaultAddress(localStorage.getItem('walletAddress'));
++        // setDefaultAddress(localStorage.getItem('walletAddress'));
+         setWalletConnected(true);
+       } else {
+         setErgoPay(true);
+         setWalletConnected(true);
+-        localStorage.setItem('walletUsed', 'ergopay');
++        // localStorage.setItem('walletUsed', 'ergopay');
+         console.log('ergoPay!!');
+-        localStorage.setItem('walletAddress', 'ErgoPay');
++        // localStorage.setItem('walletAddress', 'ErgoPay');
+         setDefaultAddress('ErgoPay');
+-        localStorage.setItem('walletConnected', 'true');
++        // localStorage.setItem('walletConnected', 'true');
+       }
+     }
+   }, []);
+@@ -136,16 +138,16 @@ export const ErgoDappConnector = (props: any) => {
+ 
+       //get Address
+       ergoWallet?.get_change_address().then(function (address: any) {
+-        localStorage.setItem('walletAddress', address);
++        // localStorage.setItem('walletAddress', address);
+         setDefaultAddress(truncate(address, 14, '...'));
+-        localStorage.setItem('walletConnected', 'true');
++        // localStorage.setItem('walletConnected', 'true');
+       });
+     }
+     if (ergoPay) {
+       console.log('ergoPay!!');
+-      localStorage.setItem('walletAddress', 'ErgoPay');
++      // localStorage.setItem('walletAddress', 'ErgoPay');
+       setDefaultAddress('ErgoPay');
+-      localStorage.setItem('walletConnected', 'true');
++      // localStorage.setItem('walletConnected', 'true');
+     }
+   }, [ergoWallet]);
+ 
+@@ -187,38 +189,39 @@ export const ErgoDappConnector = (props: any) => {
+   };
+ 
+   function disconnectWallet() {
+-    if (localStorage.getItem('walletUsed') == 'ergopay') {
+-      setErgoPay(false);
+-      localStorage.removeItem('walletConnected');
+-      localStorage.removeItem('walletUsed');
+-      localStorage.removeItem('walletAddress');
+-      setWalletConnected(false);
+-      setErgoWallet(null);
+-      setDefaultAddress('');
+-    }
+-    if (typeof (window as any).ergo_request_read_access === 'undefined') {
+-    } else {
+-      if (walletConnected) {
+-        setWalletConnected(false);
+-        setErgoWallet(null);
+-        setDefaultAddress('');
+-        localStorage.removeItem('walletAddress');
+-        localStorage.removeItem('walletConnected');
+-        localStorage.removeItem('walletUsed');
+-        (window as any).ergoConnector.nautilus.disconnect();
+-      }
+-    }
++    // if (localStorage.getItem('walletUsed') == 'ergopay') {
++    //   setErgoPay(false);
++    //   localStorage.removeItem('walletConnected');
++    //   localStorage.removeItem('walletUsed');
++    //   localStorage.removeItem('walletAddress');
++    //   setWalletConnected(false);
++    //   setErgoWallet(null);
++    //   setDefaultAddress('');
++    // }
++    // if (typeof (window as any).ergo_request_read_access === 'undefined') {
++    // } else {
++    //   if (walletConnected) {
++    //     setWalletConnected(false);
++    //     setErgoWallet(null);
++    //     setDefaultAddress('');
++    //     localStorage.removeItem('walletAddress');
++    //     localStorage.removeItem('walletConnected');
++    //     localStorage.removeItem('walletUsed');
++    //     (window as any).ergoConnector.nautilus.disconnect();
++    //   }
++    // }
++    console.log("disconnecting");
+   }
+ 
+   const toggleSelector = () => {
+-    if (!walletConnected) setShowSelector(!showSelector);
++    // if (!walletConnected) setShowSelector(!showSelector);
+   };
+ 
+   const handleWalletTrue = () => {
+-    if (walletConnected) setWalletHover((prev) => !prev);
+-    else {
+-      setShowSelector((prev) => !prev);
+-    }
++    // if (walletConnected) setWalletHover((prev) => !prev);
++    // else {
++    //   setShowSelector((prev) => !prev);
++    // }
+   };
+ 
+   const connectNautilus: MouseEventHandler<HTMLButtonElement> = () => {
+@@ -239,7 +242,7 @@ export const ErgoDappConnector = (props: any) => {
+                 (window as any).ergoConnector.nautilus
+                   .getContext()
+                   .then((context: any) => {
+-                    localStorage.setItem('walletUsed', 'nautilus');
++                    // localStorage.setItem('walletUsed', 'nautilus');
+                     setErgoWallet(context);
+                   });
+               } else {
+@@ -259,11 +262,11 @@ export const ErgoDappConnector = (props: any) => {
+     disconnectWallet();
+     setErgoPay(true);
+     setWalletConnected(true);
+-    localStorage.setItem('walletUsed', 'ergopay');
++    // localStorage.setItem('walletUsed', 'ergopay');
+     console.log('ergoPay!!');
+-    localStorage.setItem('walletAddress', 'ErgoPay');
++    // localStorage.setItem('walletAddress', 'ErgoPay');
+     setDefaultAddress('ErgoPay');
+-    localStorage.setItem('walletConnected', 'true');
++    // localStorage.setItem('walletConnected', 'true');
+     toggleSelector();
+   };
+ 
+@@ -407,11 +410,12 @@ export const ErgoDappConnector = (props: any) => {
+                       height="20"
+                       width="20"
+                       className={commonStyle.logosStyle}
+-                      src={
+-                        localStorage.getItem('walletUsed') == 'nautilus'
+-                          ? NautilusLogo
+-                          : ergoPayLogo
+-                      }
++                      src={NautilusLogo}
++                      // src={
++                      //   localStorage.getItem('walletUsed') == 'nautilus'
++                      //     ? NautilusLogo
++                      //     : ergoPayLogo
++                      // }
+                     />
+                     <span
+                       style={{
+diff --git i/components/SettingPopup.tsx w/components/SettingPopup.tsx
+index eb778e0..77a88aa 100644
+--- i/components/SettingPopup.tsx
++++ w/components/SettingPopup.tsx
+@@ -19,7 +19,8 @@ export default function SettingPopup() {
+     if (localStorageKeyExists("txOperatorFee")) {
+       setNitroValue(
+         Number(
+-          Number(localStorage.getItem("txOperatorFee")!) /
++          // Number(localStorage.getItem("txOperatorFee")!) /
++          Number(0) /
+             Number(MIN_TX_OPERATOR_FEE)
+         ).toFixed(3)
+       );
+@@ -27,7 +28,9 @@ export default function SettingPopup() {
+     if (localStorageKeyExists("minerFee")) {
+       setMinerNitroValue(
+         Number(
+-          Number(localStorage.getItem("minerFee")!) / Number(MIN_MINER_FEE)
++          // Number(localStorage.getItem("minerFee")!) / 
++          Number(0) / 
++            Number(MIN_MINER_FEE)
+         ).toFixed(3)
+       );
+     }
+@@ -42,7 +45,7 @@ export default function SettingPopup() {
+       (BigInt(MIN_TX_OPERATOR_FEE) * BigInt(nitroValue * 1e3)) / BigInt(1e3);
+ 
+     setNitroValue(nitroValue);
+-    localStorage.setItem("txOperatorFee", txOperatorFee.toString());
++    // localStorage.setItem("txOperatorFee", txOperatorFee.toString());
+   };
+ 
+   const handleMinerNitro = (nitroValue: number) => {
+@@ -55,7 +58,7 @@ export default function SettingPopup() {
+       (BigInt(MIN_MINER_FEE) * BigInt(nitroValue * 1e3)) / BigInt(1e3);
+ 
+     setMinerNitroValue(nitroValue);
+-    localStorage.setItem("minerFee", minerFee.toString());
++    // localStorage.setItem("minerFee", minerFee.toString());
+   };
+ 
+   return (
+@@ -96,10 +99,10 @@ export default function SettingPopup() {
+                     <button
+                       className="focus:outline-none text-white primary-gradient hover:opacity-80 focus:ring-4 focus:ring-purple-300 font-medium rounded-md text-md px-3 sm:px-5 py-2 sm:py-2.5"
+                       onClick={() => {
+-                        localStorage.setItem(
+-                          "txOperatorFee",
+-                          MIN_TX_OPERATOR_FEE.toString()
+-                        );
++                        // localStorage.setItem(
++                        //   "txOperatorFee",
++                        //   MIN_TX_OPERATOR_FEE.toString()
++                        // );
+                         setNitroValue("1.000");
+                       }}
+                     >
+@@ -135,10 +138,10 @@ export default function SettingPopup() {
+                     <button
+                       className="focus:outline-none text-white primary-gradient hover:opacity-80 focus:ring-4 focus:ring-purple-300 font-medium rounded-md text-md px-3 sm:px-5 py-2 sm:py-2.5"
+                       onClick={() => {
+-                        localStorage.setItem(
+-                          "minerFee",
+-                          MIN_MINER_FEE.toString()
+-                        );
++                        // localStorage.setItem(
++                        //   "minerFee",
++                        //   MIN_MINER_FEE.toString()
++                        // );
+                         setMinerNitroValue("1.000");
+                       }}
+                     >
+diff --git i/components/wallet/ConnectWallet.tsx w/components/wallet/ConnectWallet.tsx
+index 27ccb09..974217f 100644
+--- i/components/wallet/ConnectWallet.tsx
++++ w/components/wallet/ConnectWallet.tsx
+@@ -147,17 +147,19 @@ const ConnectWallet: React.FC<IProps> = (props) => {
+   }, [walletConnected]);
+ 
+   useEffect(() => {
+-    const isMainnet = localStorage.getItem("IsMainnet")
+-      ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
+-      : true;
++    // const isMainnet = localStorage.getItem("IsMainnet")
++    //   ? (JSON.parse(localStorage.getItem("IsMainnet")!) as boolean)
++    //   : true;
++    const isMainnet = false;
+ 
+     setIsMainnet(isMainnet);
+ 
+-    const walletConfig = localStorage.getItem("walletConfig")
+-      ? (JSON.parse(
+-          localStorage.getItem("walletConfig")!
+-        ) as walletLocalStorage)
+-      : undefined;
++    const walletConfig = null;
++    // const walletConfig = localStorage.getItem("walletConfig")
++    //   ? (JSON.parse(
++    //       localStorage.getItem("walletConfig")!
++    //     ) as walletLocalStorage)
++    //   : undefined;
+ 
+     if (walletConfig) {
+       setWalletConnected(walletConfig.walletConnected);
+diff --git i/components/wallet/DropDown.tsx w/components/wallet/DropDown.tsx
+index c5d5253..c3b6ea8 100644
+--- i/components/wallet/DropDown.tsx
++++ w/components/wallet/DropDown.tsx
+@@ -50,18 +50,19 @@ const DropDown: React.FC = () => {
+     const selectedTitle = e.item?.props?.title;
+ 
+     if (!selectedTitle || selectedTitle === "Ergo") {
+-      localStorage.setItem("IsMainnet", "true");
++      // localStorage.setItem("IsMainnet", "true");
+     } else {
+-      localStorage.setItem("IsMainnet", "false");
++      // localStorage.setItem("IsMainnet", "false");
+     }
+ 
+     setValue(selectedTitle);
+-    localStorage.removeItem("walletConfig");
++    // localStorage.removeItem("walletConfig");
+     window.location.reload();
+   };
+ 
+   useEffect(() => {
+-    const isMainnet = localStorage.getItem("IsMainnet");
++    // const isMainnet = localStorage.getItem("IsMainnet");
++    const isMainnet = false;
+ 
+     if (!isMainnet || isMainnet === "true") {
+       setValue("Ergo");
+diff --git i/src/app/components/Connector/connector.js w/src/app/components/Connector/connector.js
+index a728503..60fa976 100644
+--- i/src/app/components/Connector/connector.js
++++ w/src/app/components/Connector/connector.js
+@@ -37,7 +37,7 @@ function Connector() {
+       const connected = await ergoConnector.nautilus.connect(); 
+       if (connected) {
+         console.log("Connected!");
+-        localStorage.setItem("walletConnected", true);
++        // localStorage.setItem("walletConnected", true);
+         setIsConnected(true);
+         getErgoBalance();
+         toast.success("Connected");
+@@ -48,7 +48,7 @@ function Connector() {
+     const nautilusDisconnector = async ()=>{
+         setIsConnected(false);
+         const disconnected = await ergoConnector.nautilus.disconnect();
+-        localStorage.setItem("walletConnected", false);
++        // localStorage.setItem("walletConnected", false);
+         toast.success("disconnected");
+     }
+     return (
+@@ -84,4 +84,4 @@ function Connector() {
+ }
+ 
+ 
+-export default Connector;
+\ No newline at end of file
++export default Connector;
+diff --git i/src/app/components/Searchbar/searchbar.js w/src/app/components/Searchbar/searchbar.js
+index e766d7d..de15902 100644
+--- i/src/app/components/Searchbar/searchbar.js
++++ w/src/app/components/Searchbar/searchbar.js
+@@ -20,8 +20,8 @@ function Searchbar() {
+             
+             setIsAvailable(data.isValid && data.isAvailable);
+             if(data.isValid && data.isAvailable) {
+-                localStorage.setItem('mintCost', data.mintCost);
+-                localStorage.setItem('transactionFee', data.transactionFee);
++                // localStorage.setItem('mintCost', data.mintCost);
++                // localStorage.setItem('transactionFee', data.transactionFee);
+             }
+             // debugger;
+             // console.log(data);
+@@ -45,8 +45,8 @@ function Searchbar() {
+     const handleSearchClick = (event) => {
+         setToSearchInput(searchInput);
+         callAPI();
+-        localStorage.setItem('searchInput', searchInput);
+-        localStorage.setItem('tier', getTierFromLength(searchInput) );
++        // localStorage.setItem('searchInput', searchInput);
++        // localStorage.setItem('tier', getTierFromLength(searchInput) );
+         setTier(getTierFromLength(searchInput));
+     };
+     // const condition = image ? 'flex' : 'flex-none sm:flex'
+diff --git i/src/app/ergo/components/BeginTransaction/beginTransaction.js w/src/app/ergo/components/BeginTransaction/beginTransaction.js
+index 4662d8d..d25c77c 100644
+--- i/src/app/ergo/components/BeginTransaction/beginTransaction.js
++++ w/src/app/ergo/components/BeginTransaction/beginTransaction.js
+@@ -4,10 +4,14 @@ import { toast, ToastContainer } from 'react-toastify';
+ import "react-toastify/dist/ReactToastify.css";
+ function BeginTransaction({onComplete}){
+ 
+-const name = localStorage.getItem('searchInput');
+-const tier = localStorage.getItem('tier');
+-const mintCost = localStorage.getItem('mintCost');
+-const transactionFee = localStorage.getItem('transactionFee');
++const name = null;
++const tier = null;
++const mintCost = null;
++const transactionFee = null;
++// const name = localStorage.getItem('searchInput');
++// const tier = localStorage.getItem('tier');
++// const mintCost = localStorage.getItem('mintCost');
++// const transactionFee = localStorage.getItem('transactionFee');
+ const validateCurrentStep = async () =>{
+ let isWalletConnected = await ergoConnector.nautilus.isConnected();
+ return isWalletConnected;
+@@ -131,4 +135,4 @@ return (
+ );
+ }
+ 
+-export default BeginTransaction;
+\ No newline at end of file
++export default BeginTransaction;
+diff --git i/src/app/ergo/components/Common/fees.js w/src/app/ergo/components/Common/fees.js
+index 5d65a8e..ae0f55c 100644
+--- i/src/app/ergo/components/Common/fees.js
++++ w/src/app/ergo/components/Common/fees.js
+@@ -2,7 +2,7 @@ function Fees({fees}){
+     return (
+         <div className="flex space-x-4 m-4">
+             <div className="flex flex-col w-60 items-center bg-white p-4 rounded-lg shadow-md ">
+-                <p className='text-xs font-bold text-black text-center'>{localStorage.getItem('transactionFee') * 4} ERG</p>
++                <p className='text-xs font-bold text-black text-center'> ERG</p>
+             </div>
+ 
+             <div className="flex flex-col w-60 items-center bg-white p-4 rounded-lg shadow-md ">
+@@ -10,7 +10,7 @@ function Fees({fees}){
+             </div>
+ 
+             <div className="flex flex-col w-60 items-center bg-white p-4 rounded-lg shadow-md ">
+-                <p className='text-xs font-bold text-black text-center'>{localStorage.getItem('mintCost') * 1 + localStorage.getItem('transactionFee') * 3} ERG</p>
++                <p className='text-xs font-bold text-black text-center'> ERG</p>
+             </div>
+ 
+             <div className="flex flex-col w-60 items-center bg-white p-4 rounded-lg shadow-md ">
+@@ -19,4 +19,4 @@ function Fees({fees}){
+         </div>
+     )
+ }
+-export default Fees;
+\ No newline at end of file
++export default Fees;
+diff --git i/src/app/ergo/components/MintingProcess/transaction/commitFee.tsx w/src/app/ergo/components/MintingProcess/transaction/commitFee.tsx
+index 523d138..774fde8 100644
+--- i/src/app/ergo/components/MintingProcess/transaction/commitFee.tsx
++++ w/src/app/ergo/components/MintingProcess/transaction/commitFee.tsx
+@@ -64,11 +64,13 @@ function CommitFee(){
+ 
+         if (localStorageKeyExists("transactionFee")) {
+             debugger;
+-        txOperatorFee = BigInt(parseInt(localStorage.getItem("transactionFee"))*NANOERG_TO_ERG);
++        // txOperatorFee = BigInt(parseInt(localStorage.getItem("transactionFee"))*NANOERG_TO_ERG);
++            txOperatorFee = BigInt(0);
+         }
+ 
+         if (localStorageKeyExists("transactionFee")) {
+-          minerFee = BigInt(parseInt(localStorage.getItem("transactionFee"))*NANOERG_TO_ERG);
++          // minerFee = BigInt(parseInt(localStorage.getItem("transactionFee"))*NANOERG_TO_ERG);
++            minerFee = BigInt(0);
+         }
+ 
+         if (!(await checkWalletConnection(walletConfig))) {
+@@ -122,7 +124,8 @@ function CommitFee(){
+         const secretString = "secret";
+         const secretStringHash = blake2b256(utf8.decode(secretString));
+ 
+-        const nameToRegisterBytes = utf8.decode(localStorage.getItem('searchInput'));
++        // const nameToRegisterBytes = utf8.decode(localStorage.getItem('searchInput'));
++        const nameToRegisterBytes = [];
+         debugger;
+ 
+         const commitmentSecret = new Uint8Array([...secretStringHash, ...receiverErgoTreeBytes, ...nameToRegisterBytes]);
+@@ -218,8 +221,10 @@ function CommitFee(){
+         }
+     };
+ 
+-    const name = localStorage.getItem('searchInput');
+-    const transactionFee = parseInt(localStorage.getItem('transactionFee'));
++    // const name = localStorage.getItem('searchInput');
++    // const transactionFee = parseInt(localStorage.getItem('transactionFee'));
++    const name = '';
++    const transactionFee = 0;
+ 
+     return (
+             <div className="flex flex-col items-center justify-center">
+@@ -297,4 +302,4 @@ function CommitFee(){
+             </div>
+     )
+ }
+-export default CommitFee;
+\ No newline at end of file
++export default CommitFee;
+diff --git i/src/app/ergo/components/MintingProcess/transaction/registeringFee.js w/src/app/ergo/components/MintingProcess/transaction/registeringFee.js
+index e6be7ed..db79570 100644
+--- i/src/app/ergo/components/MintingProcess/transaction/registeringFee.js
++++ w/src/app/ergo/components/MintingProcess/transaction/registeringFee.js
+@@ -1,5 +1,6 @@
+ function RegisteringFee(){
+-    const name = localStorage.getItem('searchInput');
++    // const name = localStorage.getItem('searchInput');
++    const name = "";
+     return (
+         <div className="flex flex-col items-center justify-center">
+            <img src="Wallet.png" // Replace with the actual path to your image alt="Image 1"
+@@ -75,4 +76,4 @@ function RegisteringFee(){
+         </div>
+     )
+ }
+-export default RegisteringFee;
+\ No newline at end of file
++export default RegisteringFee;
+diff --git i/src/app/ergo/components/ProcessOverview/processOverview.js w/src/app/ergo/components/ProcessOverview/processOverview.js
+index a4a2794..3db46b6 100644
+--- i/src/app/ergo/components/ProcessOverview/processOverview.js
++++ w/src/app/ergo/components/ProcessOverview/processOverview.js
+@@ -3,8 +3,10 @@ import Steps from '../Common/steps';
+ import Fees from '../Common/fees';
+ import Time from '../Common/time';
+ 
+-const mintCost = localStorage.getItem('mintCost');
+-const transactionFee = localStorage.getItem('transactionFee');
++const mintCost = null;
++const transactionFee = null;
++// const mintCost = localStorage.getItem('mintCost');
++// const transactionFee = localStorage.getItem('transactionFee');
+ const totalMintingCost = parseInt(mintCost) + 7 * transactionFee;
+ // debugger;
+ 
+@@ -57,4 +59,4 @@ return (
+ 
+ }
+ 
+-export default ProcessOverview;
+\ No newline at end of file
++export default ProcessOverview;
+diff --git i/src/app/layout.js w/src/app/layout.js
+index 9c57a5e..43f3609 100644
+--- i/src/app/layout.js
++++ w/src/app/layout.js
+@@ -4,9 +4,9 @@ import './globals.css'
+ 
+ const inter = Inter({ subsets: ['latin'] })
+ 
+-if (!window) {
+-    require('localstorage-polyfill');
+-};
++// if (!window) {
++//     require('localstorage-polyfill');
++// };
+ 
+ export const metadata = {
+   title: 'ErgoNames',
+diff --git i/yarn.lock w/yarn.lock
+index 11aff90..ff90a13 100644
+--- i/yarn.lock
++++ w/yarn.lock
+@@ -80,7 +80,7 @@
+   resolved "https://registry.npmjs.org/@babel/compat-data/-/compat-data-7.23.5.tgz"
+   integrity sha512-uU27kfDRlhfKl+w1U6vp16IuvSLtjAxdArVXPa9BvLkrr7CYIsxH5adpHObeAGY/41+syctUWOZ140a2Rvkgjw==
+ 
+-"@babel/core@^7.0.0", "@babel/core@^7.0.0-beta.39":
++"@babel/core@^7.0.0-beta.39":
+   version "7.24.0"
+   resolved "https://registry.npmjs.org/@babel/core/-/core-7.24.0.tgz"
+   integrity sha512-fQfkg0Gjkza3nf0c7/w6Xf34BW4YvzNfACRLmmb7XRLa6XHdR+K9AlJlxneFfWYf6uhOzuzZVTjF/8KfndZANw==
+@@ -398,13 +398,6 @@
+   resolved "https://registry.npmjs.org/@fortawesome/fontawesome-common-types/-/fontawesome-common-types-6.5.2.tgz"
+   integrity sha512-gBxPg3aVO6J0kpfHNILc+NMhXnqHumFxOmjYCFfOiLZfwhnnfhtsdA2hfJlDnj+8PjAs6kKQPenOTKj3Rf7zHw==
+ 
+-"@fortawesome/fontawesome-svg-core@~1 || ~6":
+-  version "6.5.2"
+-  resolved "https://registry.npmjs.org/@fortawesome/fontawesome-svg-core/-/fontawesome-svg-core-6.5.2.tgz"
+-  integrity sha512-5CdaCBGl8Rh9ohNdxeeTMxIj8oc3KNBgIeLMvJosBMdslK/UnEB8rzyDRrbKdL1kDweqBPo4GT9wvnakHWucZw==
+-  dependencies:
+-    "@fortawesome/fontawesome-common-types" "6.5.2"
+-
+ "@fortawesome/free-solid-svg-icons@^6.3.0":
+   version "6.5.2"
+   resolved "https://registry.npmjs.org/@fortawesome/free-solid-svg-icons/-/free-solid-svg-icons-6.5.2.tgz"
+@@ -563,11 +556,51 @@
+   dependencies:
+     glob "7.1.7"
+ 
++"@next/swc-darwin-arm64@14.0.3":
++  version "14.0.3"
++  resolved "https://registry.yarnpkg.com/@next/swc-darwin-arm64/-/swc-darwin-arm64-14.0.3.tgz#b1a0440ffbf69056451947c4aea5b6d887e9fbbc"
++  integrity sha512-64JbSvi3nbbcEtyitNn2LEDS/hcleAFpHdykpcnrstITFlzFgB/bW0ER5/SJJwUPj+ZPY+z3e+1jAfcczRLVGw==
++
+ "@next/swc-darwin-x64@14.0.3":
+   version "14.0.3"
+   resolved "https://registry.npmjs.org/@next/swc-darwin-x64/-/swc-darwin-x64-14.0.3.tgz"
+   integrity sha512-RkTf+KbAD0SgYdVn1XzqE/+sIxYGB7NLMZRn9I4Z24afrhUpVJx6L8hsRnIwxz3ERE2NFURNliPjJ2QNfnWicQ==
+ 
++"@next/swc-linux-arm64-gnu@14.0.3":
++  version "14.0.3"
++  resolved "https://registry.yarnpkg.com/@next/swc-linux-arm64-gnu/-/swc-linux-arm64-gnu-14.0.3.tgz#0a36475a38b2855ab8ea0fe8b56899bc90184c0f"
++  integrity sha512-3tBWGgz7M9RKLO6sPWC6c4pAw4geujSwQ7q7Si4d6bo0l6cLs4tmO+lnSwFp1Tm3lxwfMk0SgkJT7EdwYSJvcg==
++
++"@next/swc-linux-arm64-musl@14.0.3":
++  version "14.0.3"
++  resolved "https://registry.yarnpkg.com/@next/swc-linux-arm64-musl/-/swc-linux-arm64-musl-14.0.3.tgz#25328a9f55baa09fde6364e7e47ade65c655034f"
++  integrity sha512-v0v8Kb8j8T23jvVUWZeA2D8+izWspeyeDGNaT2/mTHWp7+37fiNfL8bmBWiOmeumXkacM/AB0XOUQvEbncSnHA==
++
++"@next/swc-linux-x64-gnu@14.0.3":
++  version "14.0.3"
++  resolved "https://registry.yarnpkg.com/@next/swc-linux-x64-gnu/-/swc-linux-x64-gnu-14.0.3.tgz#594b747e3c8896b2da67bba54fcf8a6b5a410e5e"
++  integrity sha512-VM1aE1tJKLBwMGtyBR21yy+STfl0MapMQnNrXkxeyLs0GFv/kZqXS5Jw/TQ3TSUnbv0QPDf/X8sDXuMtSgG6eg==
++
++"@next/swc-linux-x64-musl@14.0.3":
++  version "14.0.3"
++  resolved "https://registry.yarnpkg.com/@next/swc-linux-x64-musl/-/swc-linux-x64-musl-14.0.3.tgz#a02da58fc6ecad8cf5c5a2a96a7f6030ec7f6215"
++  integrity sha512-64EnmKy18MYFL5CzLaSuUn561hbO1Gk16jM/KHznYP3iCIfF9e3yULtHaMy0D8zbHfxset9LTOv6cuYKJgcOxg==
++
++"@next/swc-win32-arm64-msvc@14.0.3":
++  version "14.0.3"
++  resolved "https://registry.yarnpkg.com/@next/swc-win32-arm64-msvc/-/swc-win32-arm64-msvc-14.0.3.tgz#bf2be23d3ba2ebd0d4a9376a31f783efdb677b48"
++  integrity sha512-WRDp8QrmsL1bbGtsh5GqQ/KWulmrnMBgbnb+59qNTW1kVi1nG/2ndZLkcbs2GX7NpFLlToLRMWSQXmPzQm4tog==
++
++"@next/swc-win32-ia32-msvc@14.0.3":
++  version "14.0.3"
++  resolved "https://registry.yarnpkg.com/@next/swc-win32-ia32-msvc/-/swc-win32-ia32-msvc-14.0.3.tgz#839f8de85a4bf2c3c69242483ab87cb916427551"
++  integrity sha512-EKffQeqCrj+t6qFFhIFTRoqb2QwX1mU7iTOvMyLbYw3QtqTw9sMwjykyiMlZlrfm2a4fA84+/aeW+PMg1MjuTg==
++
++"@next/swc-win32-x64-msvc@14.0.3":
++  version "14.0.3"
++  resolved "https://registry.yarnpkg.com/@next/swc-win32-x64-msvc/-/swc-win32-x64-msvc-14.0.3.tgz#27b623612b1d0cea6efe0a0d31aa1a335fc99647"
++  integrity sha512-ERhKPSJ1vQrPiwrs15Pjz/rvDHZmkmvbf/BjPN/UCOI++ODftT0GtasDPi0j+y6PPJi5HsXw+dpRaXUaw4vjuQ==
++
+ "@noble/hashes@^1.3.2":
+   version "1.3.3"
+   resolved "https://registry.npmjs.org/@noble/hashes/-/hashes-1.3.3.tgz"
+@@ -581,7 +614,7 @@
+     "@nodelib/fs.stat" "2.0.5"
+     run-parallel "^1.1.9"
+ 
+-"@nodelib/fs.stat@^2.0.2", "@nodelib/fs.stat@2.0.5":
++"@nodelib/fs.stat@2.0.5", "@nodelib/fs.stat@^2.0.2":
+   version "2.0.5"
+   resolved "https://registry.npmjs.org/@nodelib/fs.stat/-/fs.stat-2.0.5.tgz"
+   integrity sha512-RkhPPp2zrqDAQA/2jNhnztcPAlv64XdhIp7a7454A5ovI7Bukxgt7MX7udwAu3zg1DcpPU0rz3VV1SeaqvY4+A==
+@@ -714,7 +747,7 @@
+   resolved "https://registry.npmjs.org/@socket.io/component-emitter/-/component-emitter-3.1.2.tgz"
+   integrity sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA==
+ 
+-"@swc/helpers@^0.5.0", "@swc/helpers@0.5.2":
++"@swc/helpers@0.5.2", "@swc/helpers@^0.5.0":
+   version "0.5.2"
+   resolved "https://registry.npmjs.org/@swc/helpers/-/helpers-0.5.2.tgz"
+   integrity sha512-E4KcWTpoLHqwPHLxidpOqQbcrZVgi0rsmmZXUle1jXmJfuIf/UWpczUJ7MZZ5tlxytgJXyp0w4PGkkeLiuIdZw==
+@@ -784,7 +817,7 @@
+   dependencies:
+     "@types/react" "*"
+ 
+-"@types/react@*", "@types/react@>=16.14.8", "@types/react@>=16.9.11":
++"@types/react@*", "@types/react@>=16.9.11":
+   version "18.2.61"
+   resolved "https://registry.npmjs.org/@types/react/-/react-18.2.61.tgz"
+   integrity sha512-NURTN0qNnJa7O/k4XUkEW2yfygA+NxS0V5h1+kp9jPwhzZy95q3ADoGMP0+JypMhrZBTTgjKAUlTctde1zzeQA==
+@@ -863,7 +896,7 @@ acorn-jsx@^5.3.2:
+   resolved "https://registry.npmjs.org/acorn-jsx/-/acorn-jsx-5.3.2.tgz"
+   integrity sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==
+ 
+-"acorn@^6.0.0 || ^7.0.0 || ^8.0.0", acorn@^8.9.0:
++acorn@^8.9.0:
+   version "8.11.2"
+   resolved "https://registry.npmjs.org/acorn/-/acorn-8.11.2.tgz"
+   integrity sha512-nc0Axzp/0FILLEVsm4fNwLCwMttvhEI263QtVPQcbpfZZ3ts0hLsZGOpE6czNlid7CJ9MlyH8reXkpsf3YUY4w==
+@@ -1124,6 +1157,14 @@ axios-retry@^3.5.0:
+     "@babel/runtime" "^7.15.4"
+     is-retry-allowed "^2.2.0"
+ 
++axios@0.19.0:
++  version "0.19.0"
++  resolved "https://registry.npmjs.org/axios/-/axios-0.19.0.tgz"
++  integrity sha512-1uvKqKQta3KBxIz14F2v06AEHZ/dIoeKfbTRkK1E5oqjDnuEerLmYTgJB5AiQZHJcljpg1TuRzdjDR06qNk0DQ==
++  dependencies:
++    follow-redirects "1.5.10"
++    is-buffer "^2.0.2"
++
+ axios@^1.4.0:
+   version "1.6.7"
+   resolved "https://registry.npmjs.org/axios/-/axios-1.6.7.tgz"
+@@ -1133,14 +1174,6 @@ axios@^1.4.0:
+     form-data "^4.0.0"
+     proxy-from-env "^1.1.0"
+ 
+-axios@0.19.0:
+-  version "0.19.0"
+-  resolved "https://registry.npmjs.org/axios/-/axios-0.19.0.tgz"
+-  integrity sha512-1uvKqKQta3KBxIz14F2v06AEHZ/dIoeKfbTRkK1E5oqjDnuEerLmYTgJB5AiQZHJcljpg1TuRzdjDR06qNk0DQ==
+-  dependencies:
+-    follow-redirects "1.5.10"
+-    is-buffer "^2.0.2"
+-
+ axobject-query@^3.2.1:
+   version "3.2.1"
+   resolved "https://registry.npmjs.org/axobject-query/-/axobject-query-3.2.1.tgz"
+@@ -1210,7 +1243,7 @@ brorand@^1.1.0:
+   resolved "https://registry.npmjs.org/brorand/-/brorand-1.1.0.tgz"
+   integrity sha512-cKV8tMCEpQs4hK/ik71d6LrPOnpkpGBR0wzxqr68g2m/LB2GxVYQroAjMJZRVM1Y4BCjCKc3vAamxSzOY2RP+w==
+ 
+-browserslist@^4.21.10, browserslist@^4.22.2, "browserslist@>= 4.21.0":
++browserslist@^4.21.10, browserslist@^4.22.2:
+   version "4.23.0"
+   resolved "https://registry.npmjs.org/browserslist/-/browserslist-4.23.0.tgz"
+   integrity sha512-QW8HiM1shhT2GuzkvklfjcKDiWFXHOeFCIA/huJPwHsslwcydgk7X+z2zXpEijP98UCY7HbubZt5J2Zgvf0CaQ==
+@@ -1290,7 +1323,7 @@ chokidar@^3.5.3:
+   optionalDependencies:
+     fsevents "~2.3.2"
+ 
+-classnames@^2.2.1, classnames@^2.2.3, classnames@^2.2.5, classnames@^2.2.6, classnames@^2.3.1, classnames@^2.3.2, classnames@2.3.2, classnames@2.x:
++classnames@2.3.2, classnames@2.x, classnames@^2.2.1, classnames@^2.2.3, classnames@^2.2.5, classnames@^2.2.6, classnames@^2.3.1, classnames@^2.3.2:
+   version "2.3.2"
+   resolved "https://registry.npmjs.org/classnames/-/classnames-2.3.2.tgz"
+   integrity sha512-CSbhY4cFEJRe6/GQzIk5qXZ4Jeg5pcsP7b5peFSDpffpe1cqjASH/n9UTjBwOp6XpMSTwQ8Za2K5V02ueA7Tmw==
+@@ -1300,7 +1333,7 @@ classnames@^2.5.1:
+   resolved "https://registry.npmjs.org/classnames/-/classnames-2.5.1.tgz"
+   integrity sha512-saHYOzhIQs6wy2sVxTM6bUDsQO4F50V9RQ22qBpEdCW+I+/Wmke2HOl6lS6dTpdxVhb88/I6+Hs+438c3lfUow==
+ 
+-client-only@^0.0.1, client-only@0.0.1:
++client-only@0.0.1, client-only@^0.0.1:
+   version "0.0.1"
+   resolved "https://registry.npmjs.org/client-only/-/client-only-0.0.1.tgz"
+   integrity sha512-IV3Ou0jSMzZrd3pZ48nLkT9DA7Ag1pnPzaiQhpW7c3RbcqqzvzzVu+L8gfqMp/8IM2MQtSiqaCxrrcfu8I8rMA==
+@@ -1324,16 +1357,16 @@ color-convert@^2.0.1:
+   dependencies:
+     color-name "~1.1.4"
+ 
+-color-name@~1.1.4:
+-  version "1.1.4"
+-  resolved "https://registry.npmjs.org/color-name/-/color-name-1.1.4.tgz"
+-  integrity sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==
+-
+ color-name@1.1.3:
+   version "1.1.3"
+   resolved "https://registry.npmjs.org/color-name/-/color-name-1.1.3.tgz"
+   integrity sha512-72fSenhMw2HZMTVHeCA9KCmpEIbzWiQsjN+BHcBbS9vr1mtt+vJjPdksIBNUmKAW8TFUDPJK5SUU3QhE9NEXDw==
+ 
++color-name@~1.1.4:
++  version "1.1.4"
++  resolved "https://registry.npmjs.org/color-name/-/color-name-1.1.4.tgz"
++  integrity sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==
++
+ combined-stream@^1.0.8:
+   version "1.0.8"
+   resolved "https://registry.npmjs.org/combined-stream/-/combined-stream-1.0.8.tgz"
+@@ -1415,11 +1448,18 @@ damerau-levenshtein@^1.0.8:
+   resolved "https://registry.npmjs.org/damerau-levenshtein/-/damerau-levenshtein-1.0.8.tgz"
+   integrity sha512-sdQSFB7+llfUcQHUQO3+B8ERRj0Oa4w9POWMI/puGtuf7gFywGmkaLCElnudfTiKZV+NvHqL0ifzdrI8Ro7ESA==
+ 
+-dayjs@^1.11.10, "dayjs@>= 1.x":
++dayjs@^1.11.10:
+   version "1.11.10"
+   resolved "https://registry.npmjs.org/dayjs/-/dayjs-1.11.10.tgz"
+   integrity sha512-vjAczensTgRcqDERK0SR2XMwsF/tSvnvlv6VcF2GIhg6Sx4yOIt/irsr1RDJsKiIyBzJDpCoXiWWq28MqH2cnQ==
+ 
++debug@=3.1.0:
++  version "3.1.0"
++  resolved "https://registry.npmjs.org/debug/-/debug-3.1.0.tgz"
++  integrity sha512-OX8XqP7/1a9cqkxYw2yXss15f26NKWBpDXQd0/uK/KPqdQhxbPa994hnzjcE2VqQpDslf55723cKPUOGSmMY3g==
++  dependencies:
++    ms "2.0.0"
++
+ debug@^3.2.7:
+   version "3.2.7"
+   resolved "https://registry.npmjs.org/debug/-/debug-3.2.7.tgz"
+@@ -1434,13 +1474,6 @@ debug@^4.1.0, debug@^4.1.1, debug@^4.3.1, debug@^4.3.2, debug@^4.3.4, debug@~4.3
+   dependencies:
+     ms "2.1.2"
+ 
+-debug@=3.1.0:
+-  version "3.1.0"
+-  resolved "https://registry.npmjs.org/debug/-/debug-3.1.0.tgz"
+-  integrity sha512-OX8XqP7/1a9cqkxYw2yXss15f26NKWBpDXQd0/uK/KPqdQhxbPa994hnzjcE2VqQpDslf55723cKPUOGSmMY3g==
+-  dependencies:
+-    ms "2.0.0"
+-
+ deep-is@^0.1.3:
+   version "0.1.4"
+   resolved "https://registry.npmjs.org/deep-is/-/deep-is-0.1.4.tgz"
+@@ -1729,7 +1762,7 @@ eslint-module-utils@^2.7.4, eslint-module-utils@^2.8.0:
+   dependencies:
+     debug "^3.2.7"
+ 
+-eslint-plugin-import@*, eslint-plugin-import@^2.28.1:
++eslint-plugin-import@^2.28.1:
+   version "2.29.0"
+   resolved "https://registry.npmjs.org/eslint-plugin-import/-/eslint-plugin-import-2.29.0.tgz"
+   integrity sha512-QPOO5NO6Odv5lpoTkddtutccQjysJuFxoPS7fAHO+9m9udNHvTCPSAMW9zGAYj8lAIdr40I8yPCdUYrncXtrwg==
+@@ -1814,7 +1847,7 @@ eslint-visitor-keys@^3.3.0, eslint-visitor-keys@^3.4.1, eslint-visitor-keys@^3.4
+   resolved "https://registry.npmjs.org/eslint-visitor-keys/-/eslint-visitor-keys-3.4.3.tgz"
+   integrity sha512-wpc+LXeiyiisxPlEkUzU6svyS1frIO3Mgxj1fdy7Pm8Ygzguax2N3Fa/D/ag1WqbOprdI+uY6wMUl8/a2G+iag==
+ 
+-eslint@*, "eslint@^2 || ^3 || ^4 || ^5 || ^6 || ^7.2.0 || ^8", "eslint@^3 || ^4 || ^5 || ^6 || ^7 || ^8", "eslint@^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0", "eslint@^6.0.0 || ^7.0.0 || >=8.0.0", "eslint@^7.0.0 || ^8.0.0", "eslint@^7.23.0 || ^8.0.0", eslint@^8:
++eslint@^8:
+   version "8.54.0"
+   resolved "https://registry.npmjs.org/eslint/-/eslint-8.54.0.tgz"
+   integrity sha512-NY0DfAkM8BIZDVl6PgSa1ttZbx3xHgJzSNJKYcQglem6CppHyMhRIQkBVSSMaSRnLhig3jsDbEzOjwCVt4AmmA==
+@@ -1970,11 +2003,6 @@ flatted@^3.2.9:
+   resolved "https://registry.npmjs.org/flatted/-/flatted-3.2.9.tgz"
+   integrity sha512-36yxDn5H7OFZQla0/jFJmbIKTdZAQHngCedGxiMmpNfEZM0sdEeT+WczLQrjK6D7o2aiyLYDnkw0R3JK0Qv1RQ==
+ 
+-follow-redirects@^1.15.4:
+-  version "1.15.5"
+-  resolved "https://registry.npmjs.org/follow-redirects/-/follow-redirects-1.15.5.tgz"
+-  integrity sha512-vSFWUON1B+yAw1VN4xMfxgn5fTUiaOzAJCKBwIIgT/+7CuGy9+r+5gITvP62j3RmaD5Ph65UaERdOSRGUzZtgw==
+-
+ follow-redirects@1.5.10:
+   version "1.5.10"
+   resolved "https://registry.npmjs.org/follow-redirects/-/follow-redirects-1.5.10.tgz"
+@@ -1982,6 +2010,11 @@ follow-redirects@1.5.10:
+   dependencies:
+     debug "=3.1.0"
+ 
++follow-redirects@^1.15.4:
++  version "1.15.5"
++  resolved "https://registry.npmjs.org/follow-redirects/-/follow-redirects-1.15.5.tgz"
++  integrity sha512-vSFWUON1B+yAw1VN4xMfxgn5fTUiaOzAJCKBwIIgT/+7CuGy9+r+5gITvP62j3RmaD5Ph65UaERdOSRGUzZtgw==
++
+ for-each@^0.3.3:
+   version "0.3.3"
+   resolved "https://registry.npmjs.org/for-each/-/for-each-0.3.3.tgz"
+@@ -2084,7 +2117,7 @@ get-tsconfig@^4.5.0:
+   dependencies:
+     resolve-pkg-maps "^1.0.0"
+ 
+-glob-parent@^5.1.2:
++glob-parent@^5.1.2, glob-parent@~5.1.2:
+   version "5.1.2"
+   resolved "https://registry.npmjs.org/glob-parent/-/glob-parent-5.1.2.tgz"
+   integrity sha512-AOIgSQCepiJYwP3ARnGx+5VnTu2HBYdzbGP45eLw1vr3zB3vZLeyed1sC9hnbcOc9/SrMyM5RPQrkGz4aS9Zow==
+@@ -2098,30 +2131,11 @@ glob-parent@^6.0.2:
+   dependencies:
+     is-glob "^4.0.3"
+ 
+-glob-parent@~5.1.2:
+-  version "5.1.2"
+-  resolved "https://registry.npmjs.org/glob-parent/-/glob-parent-5.1.2.tgz"
+-  integrity sha512-AOIgSQCepiJYwP3ARnGx+5VnTu2HBYdzbGP45eLw1vr3zB3vZLeyed1sC9hnbcOc9/SrMyM5RPQrkGz4aS9Zow==
+-  dependencies:
+-    is-glob "^4.0.1"
+-
+ glob-to-regexp@^0.4.1:
+   version "0.4.1"
+   resolved "https://registry.npmjs.org/glob-to-regexp/-/glob-to-regexp-0.4.1.tgz"
+   integrity sha512-lkX1HJXwyMcprw/5YUZc2s7DrpAiHB21/V+E1rHUrVNokkvB6bqMzT0VfV6/86ZNabt1k14YOIaT7nDvOX3Iiw==
+ 
+-glob@^7.1.3, glob@7.1.7:
+-  version "7.1.7"
+-  resolved "https://registry.npmjs.org/glob/-/glob-7.1.7.tgz"
+-  integrity sha512-OvD9ENzPLbegENnYP5UUfJIirTg4+XwMWGaQfQTY0JenxNvvIKP3U3/tAQSPIu/lHxXYSZmpXlUHeqAIdKzBLQ==
+-  dependencies:
+-    fs.realpath "^1.0.0"
+-    inflight "^1.0.4"
+-    inherits "2"
+-    minimatch "^3.0.4"
+-    once "^1.3.0"
+-    path-is-absolute "^1.0.0"
+-
+ glob@7.1.6:
+   version "7.1.6"
+   resolved "https://registry.npmjs.org/glob/-/glob-7.1.6.tgz"
+@@ -2134,6 +2148,18 @@ glob@7.1.6:
+     once "^1.3.0"
+     path-is-absolute "^1.0.0"
+ 
++glob@7.1.7, glob@^7.1.3:
++  version "7.1.7"
++  resolved "https://registry.npmjs.org/glob/-/glob-7.1.7.tgz"
++  integrity sha512-OvD9ENzPLbegENnYP5UUfJIirTg4+XwMWGaQfQTY0JenxNvvIKP3U3/tAQSPIu/lHxXYSZmpXlUHeqAIdKzBLQ==
++  dependencies:
++    fs.realpath "^1.0.0"
++    inflight "^1.0.4"
++    inherits "2"
++    minimatch "^3.0.4"
++    once "^1.3.0"
++    path-is-absolute "^1.0.0"
++
+ globals@^11.1.0:
+   version "11.12.0"
+   resolved "https://registry.npmjs.org/globals/-/globals-11.12.0.tgz"
+@@ -2276,7 +2302,7 @@ inflight@^1.0.4:
+     once "^1.3.0"
+     wrappy "1"
+ 
+-inherits@^2.0.3, inherits@^2.0.4, inherits@2:
++inherits@2, inherits@^2.0.3, inherits@^2.0.4:
+   version "2.0.4"
+   resolved "https://registry.npmjs.org/inherits/-/inherits-2.0.4.tgz"
+   integrity sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==
+@@ -2713,16 +2739,16 @@ minimist@^1.2.0, minimist@^1.2.6:
+   resolved "https://registry.npmjs.org/minimist/-/minimist-1.2.8.tgz"
+   integrity sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==
+ 
+-ms@^2.1.1, ms@2.1.2:
+-  version "2.1.2"
+-  resolved "https://registry.npmjs.org/ms/-/ms-2.1.2.tgz"
+-  integrity sha512-sGkPx+VjMtmA6MX27oA4FBFELFCZZ4S4XqeGOXCv68tT+jb3vk/RyaKWP0PTKyWtmLSM0b+adUTEvbs1PEaH2w==
+-
+ ms@2.0.0:
+   version "2.0.0"
+   resolved "https://registry.npmjs.org/ms/-/ms-2.0.0.tgz"
+   integrity sha512-Tpp60P6IUJDTuOq/5Z8cdskzJujfwqfOTkrwIwj7IRISpnkJnT6SyJ4PCPnGMoFjC9ddhal5KVIYtAt97ix05A==
+ 
++ms@2.1.2, ms@^2.1.1:
++  version "2.1.2"
++  resolved "https://registry.npmjs.org/ms/-/ms-2.1.2.tgz"
++  integrity sha512-sGkPx+VjMtmA6MX27oA4FBFELFCZZ4S4XqeGOXCv68tT+jb3vk/RyaKWP0PTKyWtmLSM0b+adUTEvbs1PEaH2w==
++
+ mz@^2.7.0:
+   version "2.7.0"
+   resolved "https://registry.npmjs.org/mz/-/mz-2.7.0.tgz"
+@@ -2994,7 +3020,7 @@ postcss-value-parser@^4.0.0, postcss-value-parser@^4.2.0:
+   resolved "https://registry.npmjs.org/postcss-value-parser/-/postcss-value-parser-4.2.0.tgz"
+   integrity sha512-1NNCs6uurfkVbeXG4S8JFT9t19m45ICnif8zWLd5oPSZ50QnwMfK+H3jv408d4jw/7Bttv5axS5IiHoLaVNHeQ==
+ 
+-postcss@^8, postcss@^8.0.0, postcss@^8.1.0, postcss@^8.2.14, postcss@^8.4.21, postcss@^8.4.23, postcss@>=8.0.9, postcss@8.4.31:
++postcss@8.4.31, postcss@^8, postcss@^8.4.23:
+   version "8.4.31"
+   resolved "https://registry.npmjs.org/postcss/-/postcss-8.4.31.tgz"
+   integrity sha512-PS08Iboia9mts/2ygV3eLpY5ghnUcfLV/EXTOW1E2qYxJKGGBUtNjN76FYHnMs36RmARn41bC0AZmn+rR0OVpQ==
+@@ -3016,7 +3042,7 @@ prop-types-extra@^1.1.0:
+     react-is "^16.3.2"
+     warning "^4.0.0"
+ 
+-prop-types@^15.6.2, prop-types@^15.8.1, prop-types@15.8.1:
++prop-types@15.8.1, prop-types@^15.6.2, prop-types@^15.8.1:
+   version "15.8.1"
+   resolved "https://registry.npmjs.org/prop-types/-/prop-types-15.8.1.tgz"
+   integrity sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg==
+@@ -3427,7 +3453,7 @@ react-copy-to-clipboard@^5.1.0:
+     copy-to-clipboard "^3.3.1"
+     prop-types "^15.8.1"
+ 
+-react-dom@*, "react-dom@^16 || ^17 || ^18", "react-dom@^16.8.0 || ^17.0.0 || ^18.0.0", react-dom@^18, react-dom@^18.1.0, react-dom@^18.2.0, react-dom@>=16, react-dom@>=16.0.0, react-dom@>=16.11.0, react-dom@>=16.14.0, react-dom@>=16.6.0, "react-dom@>=16.8 || ^17.0.0 || ^18.0.0", react-dom@>=16.8.0, react-dom@>=16.9.0, react-dom@18.2.0:
++react-dom@18.2.0, react-dom@^18:
+   version "18.2.0"
+   resolved "https://registry.npmjs.org/react-dom/-/react-dom-18.2.0.tgz"
+   integrity sha512-6IMTriUmvsjHUjNtEDudZfuDQUoWXVxKHhlEGSk81n4YFS+r/Kl99wXiwlVXtPBtJenozv2P+hxDsw9eA7Xo6g==
+@@ -3475,7 +3501,7 @@ react-transition-group@^4.4.5:
+     loose-envify "^1.4.0"
+     prop-types "^15.6.2"
+ 
+-react@*, "react@^15.3.0 || 16 || 17 || 18", "react@^16 || ^17 || ^18", "react@^16.8.0 || ^17.0.0 || ^18.0.0", "react@^16.8.0 || ^17.0.0-rc.1 || ^18.0.0", "react@^16.x || ^17.x || ^18.x", react@^18, react@^18.1.0, react@^18.2.0, "react@>= 16.8.0 || 17.x.x || ^18.0.0-0", react@>=0.14.0, react@>=15.0.0, react@>=16, react@>=16.0.0, react@>=16.11.0, react@>=16.14.0, react@>=16.3, react@>=16.6.0, "react@>=16.8 || ^17.0.0 || ^18.0.0", react@>=16.8.0, react@>=16.9.0, react@18.2.0:
++react@18.2.0, react@^18:
+   version "18.2.0"
+   resolved "https://registry.npmjs.org/react/-/react-18.2.0.tgz"
+   integrity sha512-/3IjMdb2L9QbBdWiW5e3P2/npwMBaU9mHCSCUzNln0ZCYbcfTsGbTJrU/kGemdH2IWmB2ioZ+zkxtmq6g09fGQ==
+@@ -3985,7 +4011,7 @@ typed-array-length@^1.0.4:
+     for-each "^0.3.3"
+     is-typed-array "^1.1.9"
+ 
+-typescript@>=3.3.1, typescript@>=4.2.0, typescript@5.3.3:
++typescript@5.3.3:
+   version "5.3.3"
+   resolved "https://registry.npmjs.org/typescript/-/typescript-5.3.3.tgz"
+   integrity sha512-pXWcraxM0uxAS+tN0AG/BF2TyqmHO014Z070UsJ+pFvYuRSq8KH8DmWpnbXe0pEPDHXZV3FcAbJkijJ5oNEnWw==
+@@ -4047,7 +4073,7 @@ warning@^4.0.0, warning@^4.0.3:
+   dependencies:
+     loose-envify "^1.0.0"
+ 
+-wasm-dce@^1.0.0, wasm-dce@1.x:
++wasm-dce@1.x, wasm-dce@^1.0.0:
+   version "1.0.2"
+   resolved "https://registry.npmjs.org/wasm-dce/-/wasm-dce-1.0.2.tgz"
+   integrity sha512-Fq1+nu43ybsjSnBquLrW/cULmKs61qbv9k8ep13QUe0nABBezMoNAA+j6QY66MW0/eoDVDp1rjXDqQ2VKyS/Xg==

@@ -3,33 +3,29 @@ import {ErgoAddress, Network} from "@fleet-sdk/core";
 
 
 export const NODE_API_URL = (isMainnet: boolean): string => (
-    isMainnet
-        ? process.env.NEXT_PUBLIC_MAINNET_NODE_URL
-        : process.env.NEXT_PUBLIC_TESTNET_NODE_URL
+    ""
 )!?.replace(/[\\/]+$/, '');
 export const EXPLORER_API_URL = (isMainnet: boolean): string => (
-    isMainnet
-        ? process.env.NEXT_PUBLIC_MAINNET_API_URL
-        : process.env.NEXT_PUBLIC_TESTNET_API_URL
+    ""
 )!?.replace(/[\\/]+$/, '');
 export const EXPLORER_URL = (isMainnet: boolean): string => (
-    isMainnet
-        ? process.env.NEXT_PUBLIC_MAINNET_EXPLORER_URL
-        : process.env.NEXT_PUBLIC_TESTNET_EXPLORER_URL
+    ""
 )!?.replace(/[\\/]+$/, '');
 
 export const PROXY_ADDRESS = (isMainnet: boolean): string => {
-    const ergoTree = process.env.NEXT_PUBLIC_PROXY_ERGO_TREE!;
+    // const ergoTree = process.env.NEXT_PUBLIC_PROXY_ERGO_TREE!;
+    const ergoTree = "";
     return isMainnet ? ErgoAddress.fromErgoTree(ergoTree, Network.Mainnet).toString() : ErgoAddress.fromErgoTree(ergoTree, Network.Testnet).toString();
 }
 export const COMMITMENT_CONTRACT = (isMainnet: boolean): string => {
-    const ergoTree = process.env.NEXT_PUBLIC_COMMITMENT_CONTRACT!;
+    // const ergoTree = process.env.NEXT_PUBLIC_COMMITMENT_CONTRACT!;
+    const ergoTree = "";
     return isMainnet ? ErgoAddress.fromErgoTree(ergoTree, Network.Mainnet).toString() : ErgoAddress.fromErgoTree(ergoTree, Network.Testnet).toString();
 }
-export const HODL_ERG_TOKEN_ID = (isMainnet: boolean): string => isMainnet ? process.env.NEXT_PUBLIC_MAINNET_HODL_ERG! : process.env.NEXT_PUBLIC_TESTNET_HODL_ERG!;
-export const BANK_SINGLETON_TOKEN_ID = (isMainnet: boolean): string => isMainnet ? process.env.NEXT_PUBLIC_MAINNET_BANK_SINGLETON! : process.env.NEXT_PUBLIC_TESTNET_BANK_SINGLETON!;
-export const MIN_TX_OPERATOR_FEE = process.env.NEXT_PUBLIC_MIN_TX_OPERATOR_FEE!;
-export const MIN_MINER_FEE = BigInt(process.env.NEXT_PUBLIC_MIN_MINER_FEE!);
+export const HODL_ERG_TOKEN_ID = (isMainnet: boolean): string => "";
+export const BANK_SINGLETON_TOKEN_ID = (isMainnet: boolean): string => "";
+export const MIN_TX_OPERATOR_FEE = 1;
+export const MIN_MINER_FEE = BigInt(1);
 
 export const UIMultiplier: bigint = BigInt(1e9);
 export const precisionBigInt: bigint = BigInt(1000000);
@@ -45,7 +41,5 @@ export const explorerClient = (isMainnet: boolean) => {
     return DefaultApiFactory(explorerConf);
 }
 export const NEXT_PUBLIC_NEST_API_URL = (isMainnet: boolean) =>  (
-    isMainnet
-        ? process.env.NEXT_PUBLIC_NEST_MAINNET_API
-        : process.env.NEXT_PUBLIC_NEST_TESTNET_API
+    ""
 )!?.replace(/[\\/]+$/, '');

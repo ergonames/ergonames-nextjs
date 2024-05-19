@@ -3,8 +3,10 @@ import Steps from '../Common/steps';
 import Fees from '../Common/fees';
 import Time from '../Common/time';
 
-const mintCost = localStorage.getItem('mintCost');
-const transactionFee = localStorage.getItem('transactionFee');
+const mintCost = null;
+const transactionFee = null;
+// const mintCost = localStorage.getItem('mintCost');
+// const transactionFee = localStorage.getItem('transactionFee');
 const totalMintingCost = parseInt(mintCost) + 7 * transactionFee;
 // debugger;
 

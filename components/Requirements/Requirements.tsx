@@ -69,9 +69,11 @@ export const ErgoDappConnector = (props: any) => {
   }, []);
 
   useEffect(() => {
-    const checkWallet = localStorage.getItem('walletConnected');
+    // const checkWallet = localStorage.getItem('walletConnected');
+    const checkWallet = 'true';
     if (checkWallet === 'true') {
-      const whichWallet = localStorage.getItem('walletUsed');
+      // const whichWallet = localStorage.getItem('walletUsed');
+      const whichWallet = 'nautilus';
       console.log(whichWallet);
       if (whichWallet === 'nautilus') {
         setDefaultAddress('');
@@ -89,16 +91,16 @@ export const ErgoDappConnector = (props: any) => {
               setWalletConnected(false);
             }
           });
-        setDefaultAddress(localStorage.getItem('walletAddress'));
+        // setDefaultAddress(localStorage.getItem('walletAddress'));
         setWalletConnected(true);
       } else {
         setErgoPay(true);
         setWalletConnected(true);
-        localStorage.setItem('walletUsed', 'ergopay');
+        // localStorage.setItem('walletUsed', 'ergopay');
         console.log('ergoPay!!');
-        localStorage.setItem('walletAddress', 'ErgoPay');
+        // localStorage.setItem('walletAddress', 'ErgoPay');
         setDefaultAddress('ErgoPay');
-        localStorage.setItem('walletConnected', 'true');
+        // localStorage.setItem('walletConnected', 'true');
       }
     }
   }, []);
@@ -136,16 +138,16 @@ export const ErgoDappConnector = (props: any) => {
 
       //get Address
       ergoWallet?.get_change_address().then(function (address: any) {
-        localStorage.setItem('walletAddress', address);
+        // localStorage.setItem('walletAddress', address);
         setDefaultAddress(truncate(address, 14, '...'));
-        localStorage.setItem('walletConnected', 'true');
+        // localStorage.setItem('walletConnected', 'true');
       });
     }
     if (ergoPay) {
       console.log('ergoPay!!');
-      localStorage.setItem('walletAddress', 'ErgoPay');
+      // localStorage.setItem('walletAddress', 'ErgoPay');
       setDefaultAddress('ErgoPay');
-      localStorage.setItem('walletConnected', 'true');
+      // localStorage.setItem('walletConnected', 'true');
     }
   }, [ergoWallet]);
 
@@ -187,38 +189,39 @@ export const ErgoDappConnector = (props: any) => {
   };
 
   function disconnectWallet() {
-    if (localStorage.getItem('walletUsed') == 'ergopay') {
-      setErgoPay(false);
-      localStorage.removeItem('walletConnected');
-      localStorage.removeItem('walletUsed');
-      localStorage.removeItem('walletAddress');
-      setWalletConnected(false);
-      setErgoWallet(null);
-      setDefaultAddress('');
-    }
-    if (typeof (window as any).ergo_request_read_access === 'undefined') {
-    } else {
-      if (walletConnected) {
-        setWalletConnected(false);
-        setErgoWallet(null);
-        setDefaultAddress('');
-        localStorage.removeItem('walletAddress');
-        localStorage.removeItem('walletConnected');
-        localStorage.removeItem('walletUsed');
-        (window as any).ergoConnector.nautilus.disconnect();
-      }
-    }
+    // if (localStorage.getItem('walletUsed') == 'ergopay') {
+    //   setErgoPay(false);
+    //   localStorage.removeItem('walletConnected');
+    //   localStorage.removeItem('walletUsed');
+    //   localStorage.removeItem('walletAddress');
+    //   setWalletConnected(false);
+    //   setErgoWallet(null);
+    //   setDefaultAddress('');
+    // }
+    // if (typeof (window as any).ergo_request_read_access === 'undefined') {
+    // } else {
+    //   if (walletConnected) {
+    //     setWalletConnected(false);
+    //     setErgoWallet(null);
+    //     setDefaultAddress('');
+    //     localStorage.removeItem('walletAddress');
+    //     localStorage.removeItem('walletConnected');
+    //     localStorage.removeItem('walletUsed');
+    //     (window as any).ergoConnector.nautilus.disconnect();
+    //   }
+    // }
+    console.log("disconnecting");
   }
 
   const toggleSelector = () => {
-    if (!walletConnected) setShowSelector(!showSelector);
+    // if (!walletConnected) setShowSelector(!showSelector);
   };
 
   const handleWalletTrue = () => {
-    if (walletConnected) setWalletHover((prev) => !prev);
-    else {
-      setShowSelector((prev) => !prev);
-    }
+    // if (walletConnected) setWalletHover((prev) => !prev);
+    // else {
+    //   setShowSelector((prev) => !prev);
+    // }
   };
 
   const connectNautilus: MouseEventHandler<HTMLButtonElement> = () => {
@@ -239,7 +242,7 @@ export const ErgoDappConnector = (props: any) => {
                 (window as any).ergoConnector.nautilus
                   .getContext()
                   .then((context: any) => {
-                    localStorage.setItem('walletUsed', 'nautilus');
+                    // localStorage.setItem('walletUsed', 'nautilus');
                     setErgoWallet(context);
                   });
               } else {
@@ -259,11 +262,11 @@ export const ErgoDappConnector = (props: any) => {
     disconnectWallet();
     setErgoPay(true);
     setWalletConnected(true);
-    localStorage.setItem('walletUsed', 'ergopay');
+    // localStorage.setItem('walletUsed', 'ergopay');
     console.log('ergoPay!!');
-    localStorage.setItem('walletAddress', 'ErgoPay');
+    // localStorage.setItem('walletAddress', 'ErgoPay');
     setDefaultAddress('ErgoPay');
-    localStorage.setItem('walletConnected', 'true');
+    // localStorage.setItem('walletConnected', 'true');
     toggleSelector();
   };
 
@@ -407,11 +410,12 @@ export const ErgoDappConnector = (props: any) => {
                       height="20"
                       width="20"
                       className={commonStyle.logosStyle}
-                      src={
-                        localStorage.getItem('walletUsed') == 'nautilus'
-                          ? NautilusLogo
-                          : ergoPayLogo
-                      }
+                      src={NautilusLogo}
+                      // src={
+                      //   localStorage.getItem('walletUsed') == 'nautilus'
+                      //     ? NautilusLogo
+                      //     : ergoPayLogo
+                      // }
                     />
                     <span
                       style={{

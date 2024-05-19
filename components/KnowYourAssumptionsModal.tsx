@@ -7,7 +7,7 @@ export default function KnowYourAssumptionsModal() {
 
   function closeModal() {
     setIsOpen(false);
-    localStorage.setItem(KYA_STORAGE_KEY, "true");
+    // localStorage.setItem(KYA_STORAGE_KEY, "true");
   }
 
   function openModal() {
@@ -15,7 +15,8 @@ export default function KnowYourAssumptionsModal() {
   }
 
   useEffect(() => {
-    const isKYAAccepted = localStorage.getItem(KYA_STORAGE_KEY);
+    // const isKYAAccepted = localStorage.getItem(KYA_STORAGE_KEY);
+    const isKYAAccepted = false;
     if (!isKYAAccepted) {
       setIsOpen(true);
     }
