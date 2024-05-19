@@ -5,7 +5,7 @@ import CommitFee from './transaction/commitFee';
 import Wait from './transaction/wait';
 import RegisteringFee from './transaction/registeringFee';
 import Complete from './transaction/complete';
-import ReceiveErgo from './transaction/ReceiveErgo';
+import ReceiveErgo from './transaction/receiveErgo';
 
 
 function MintingProcess({onBack}){
