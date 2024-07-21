@@ -1,6 +1,14 @@
-function RegisteringFee(){
-    // const name = localStorage.getItem('searchInput');
-    const name = "";
+import React, { useEffect, useState } from "react";
+
+export default function RegisteringFee() {
+    const [ergoname, setErgoname] = useState('');
+
+    useEffect(() => {
+        if (typeof window !== "undefined" && window.localStorage) {
+            setErgoname(localStorage.getItem('searchInput'));
+        }
+    }, [])
+
     return (
         <div className="flex flex-col items-center justify-center">
            <img src="Wallet.png" // Replace with the actual path to your image alt="Image 1"
@@ -13,7 +21,7 @@ function RegisteringFee(){
                             <p>Name</p>
                         </div>
                         <div className="flex-none">
-                            <p>{name}.eth</p>
+                            <p>{ergoname}.eth</p>
                         </div>
                     </div>
                 </div>
@@ -76,4 +84,3 @@ function RegisteringFee(){
         </div>
     )
 }
-export default RegisteringFee;

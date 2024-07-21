@@ -19,7 +19,6 @@ function Navigation() {
           <div className="ml-auto">
             <Connector />
           </div>
-          
         </div>
       </div>
     );

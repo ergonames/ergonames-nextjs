@@ -8,23 +8,14 @@ import "react-toastify/dist/ReactToastify.css";
 
 const NANOERG_TO_ERG = 1000000000;
 
-
-
 function Connector() {
-    
     const [isConnected, setIsConnected] = useState(false);
     const [isModalOpen, setModalOpen] = useState(false);
     const [ergoBalance,setErgoBalance] = useState(0);
     const [defaultAddress, setDefaultAddress] = useState('');
 
-    const handleClick = () =>{
-      if(isConnected){
-        setModalOpen(true);
-      }
-      else{
-        nautilusConnector();
-      }
-    }
+    const handleClick = () => isConnected ? setModalOpen(true) : nautilusConnector()
+
     const getErgoBalance = async () => {
       const ergs = await ergo.get_balance();
       const address = await ergo.get_change_address();
