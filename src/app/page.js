@@ -4,7 +4,7 @@ import RootLayout from './layout';
 // import React, { useState , useEffect} from 'react';
 
 export default function Home() {
-  
+
   // useEffect(()=>{
     
   // },[])

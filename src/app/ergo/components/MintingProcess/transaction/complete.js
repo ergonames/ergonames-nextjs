@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 
-const Complete = () => {
+export default function Complete() {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
@@ -28,5 +28,3 @@ const Complete = () => {
     </div>
   );
 };
-
-export default Complete;
