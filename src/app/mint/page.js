@@ -28,6 +28,11 @@ export default function MintPage() {
       setResult({ error: "Names are 1-25 chars: letters, numbers, underscore." });
       return;
     }
+    // Testing phase: only 8+ character names can be registered.
+    if (c.length < 8) {
+      setResult({ error: "During the testing phase, only names with 8 or more characters can be registered." });
+      return;
+    }
     setBusy(true);
     try { setResult(await resolveName(c)); }
     catch (e) { setResult({ error: "Couldn't reach the name service. Try again." }); }
@@ -63,8 +68,21 @@ export default function MintPage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center gap-6 p-8 bg-black text-white">
-      <h1 className="text-4xl font-bold"><span className="text-orange-500">~</span>ErgoNames</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="text-4xl font-bold"><span className="text-orange-500">~</span>ErgoNames</h1>
+        <span className="px-2 py-0.5 rounded bg-orange-500/20 border border-orange-500 text-orange-400 text-xs font-bold tracking-wider self-start mt-1">BETA</span>
+      </div>
       <p className="opacity-70">Register your name on Ergo.</p>
+
+      <div className="w-full max-w-md p-4 rounded bg-yellow-500/10 border border-yellow-500/50 text-yellow-200 text-sm">
+        <p className="font-semibold mb-1">⚠️ Testing phase — names are not permanent</p>
+        <p className="opacity-90">
+          ErgoNames is in beta. Names registered now are for testing and
+          <span className="font-semibold"> may be purged before the public launch</span>.
+          Do not rely on any name minted during this phase. Only names of 8+
+          characters can be registered for now.
+        </p>
+      </div>
 
       <div className="flex gap-2 w-full max-w-md">
         <span className="self-center text-orange-500 text-2xl font-bold">~</span>
