@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { resolveName, mintErgoName, connectWallet, getStatus, txLink } from "../lib/ergonames";
 
 const STATE_COPY = {
@@ -19,7 +19,24 @@ export default function MintPage() {
   const [busy, setBusy] = useState(false);
   const [address, setAddress] = useState(null);
   const [walletErr, setWalletErr] = useState("");
+  const [detected, setDetected] = useState(null); // null=checking, true/false
   const pollRef = useRef(null);
+
+  // Detect the Nautilus dApp connector. It can inject shortly after load, so
+  // poll briefly before declaring it absent.
+  useEffect(() => {
+    let tries = 0;
+    const id = setInterval(() => {
+      if (typeof window !== "undefined" && window.ergoConnector?.nautilus) {
+        setDetected(true);
+        clearInterval(id);
+      } else if (++tries > 6) {
+        setDetected(false);
+        clearInterval(id);
+      }
+    }, 500);
+    return () => clearInterval(id);
+  }, []);
 
   const clean = (n) => n.trim().replace(/^~/, "");
   const short = (a) => `${a.slice(0, 6)}…${a.slice(-4)}`;
@@ -93,6 +110,12 @@ export default function MintPage() {
         )}
       </header>
 
+      {detected === false && (
+        <div className="w-full max-w-xl mt-4 p-3 rounded bg-red-500/10 border border-red-500/50 text-red-300 text-sm text-center">
+          Nautilus wallet was not detected in this browser. Install the{" "}
+          <a className="underline" href="https://chromewebstore.google.com/detail/nautilus-wallet/gjlmehlldlphhljhpnlddaodbjjcchai" target="_blank" rel="noreferrer">Nautilus extension</a>, then reload this page.
+        </div>
+      )}
       {walletErr && (
         <div className="w-full max-w-xl mt-4 p-3 rounded bg-red-500/10 border border-red-500/50 text-red-300 text-sm text-center">
           {walletErr}

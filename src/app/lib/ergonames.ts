@@ -83,7 +83,7 @@ export async function connectWallet(): Promise<string> {
   }
   console.log("[ergonames] requesting Nautilus connection…");
   const granted = await withTimeout(
-    ergoConnector.nautilus.connect({ createErgoObject: true }),
+    ergoConnector.nautilus.connect(),
     60000,
     "Wallet connection",
   );
