@@ -179,8 +179,11 @@ export async function mintErgoName(
   // R4 commit hash, R5 user PK group element, R6 miner fee. Value carries the
   // tx-operator fee (becomes the operator payout at register).
   onProgress("Building commit transaction…");
+  // The commit box value MUST equal the tx-operator fee — the register tx's
+  // reveal contract enforces `txOperatorFee == commitBox.value`. (Earlier this
+  // added minBoxValue, which made every UI register fail.)
   const commitOutput = new OutputBuilder(
-    BigInt(p.txOperatorFee) + BigInt(p.minBoxValue),
+    BigInt(p.txOperatorFee),
     p.commitContractAddress,
   ).setAdditionalRegisters({
     R4: SColl(SByte, hexToBytes(p.commitHashHex)).toHex(),
