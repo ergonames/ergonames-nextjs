@@ -1,11 +1,52 @@
-@import url('https://fonts.googleapis.com/css?family=Montserrat');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: dark;
+}
 
-@layer base {
-    html {
-        font-family: 'Montserrat', sans-serif;
-    }
-  }
+html, body {
+  background: #0D0F19;
+  color: #ECECEE;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Subtle hexagon lattice — the Ergo motif — fixed behind everything */
+.hex-bg::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100' viewBox='0 0 56 100'%3E%3Cpath fill='none' stroke='%23ffffff' stroke-opacity='0.035' stroke-width='1' d='M28 0L56 16v32L28 64 0 48V16z M28 64v36'/%3E%3C/svg%3E");
+  background-size: 56px 100px;
+  mask-image: radial-gradient(70% 60% at 50% 30%, #000 0%, transparent 75%);
+  -webkit-mask-image: radial-gradient(70% 60% at 50% 30%, #000 0%, transparent 75%);
+}
+
+/* Orange aurora glow at the top */
+.aura::after {
+  content: "";
+  position: fixed;
+  top: -20%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 600px;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(255,85,55,0.22) 0%, rgba(255,85,55,0) 70%);
+  filter: blur(20px);
+}
+
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-thumb { background: #2A2A31; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a44; }
+
+.glass {
+  background: rgba(22,22,26,0.7);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}

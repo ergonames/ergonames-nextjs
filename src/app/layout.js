@@ -1,17 +1,18 @@
-import { Inter } from "next/font/google";
+import { Space_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const display = Space_Grotesk({ subsets: ["latin"], variable: "--font-display", weight: ["500", "600", "700"] });
+const body = Inter({ subsets: ["latin"], variable: "--font-body" });
 
 export const metadata = {
-  title: "ErgoNames",
-  description: "Decentralised identity solution on Ergo blockchain",
+  title: "ErgoNames — your name on Ergo",
+  description: "Register a human-readable name on the Ergo blockchain.",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body className={inter.className} style={{ margin: 0 }}>
+    <html lang="en" className={`${display.variable} ${body.variable}`}>
+      <body className="font-sans hex-bg aura" style={{ margin: 0 }}>
         {children}
       </body>
     </html>
