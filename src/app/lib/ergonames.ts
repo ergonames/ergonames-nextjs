@@ -95,6 +95,24 @@ export async function getStuckMints(address: string): Promise<StuckMint[]> {
   } catch { return []; }
 }
 
+export interface MintsForAddress { minting: string[]; stuck: StuckMint[]; }
+
+// In-progress + stuck mints for a wallet (so they show in My Names too).
+export async function getMints(address: string): Promise<MintsForAddress> {
+  try {
+    const r = await (await fetch(`${BOT_URL}/mints/${address}`)).json();
+    return { minting: r.minting || [], stuck: r.stuck || [] };
+  } catch { return { minting: [], stuck: [] }; }
+}
+
+// Full on-chain stats for a registered name (from the indexer).
+export async function getNameStats(name: string): Promise<any> {
+  const r = await (await fetch(`${API_URL}/resolve/${name}`)).json();
+  let owner: string | null = null;
+  try { owner = (await (await fetch(`${API_URL}/owner/${name}`)).json()).owner ?? null; } catch {}
+  return { ...r, owner };
+}
+
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
     p,

@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { connectWallet, getOwnedNames, getStuckMints, refundStuckMint, resolveName, txLink } from "../lib/ergonames";
+import { connectWallet, getOwnedNames, getMints, refundStuckMint, getNameStats, getStatus, txLink } from "../lib/ergonames";
 import HexLogo from "../components/HexLogo";
+import HexArt from "../components/HexArt";
 import ThemeToggle from "../components/ThemeToggle";
 import Link from "next/link";
 
@@ -10,49 +11,159 @@ function Avatar({ seed, size = 40 }) {
   return <span style={{ width: size, height: size, background: `linear-gradient(135deg, hsl(${h} 90% 62%), hsl(${(h + 50) % 360} 90% 55%))` }} className="rounded-full shrink-0" />;
 }
 
+const STEPS = ["Enter the minting queue", "Wait for the commit to confirm", "Reveal & register", "Receive your ErgoName"];
+const stepsDone = (s) => ({ not_found: 1, queued: 1, revealing: 2, registering: 3, registered: 4, refunded: 0 }[s] ?? 1);
+
+// ── Detail: a registered name (art + stats) ────────────────────────────────
+function MintedDetail({ name }) {
+  const [s, setS] = useState(null);
+  useEffect(() => { getNameStats(name).then(setS).catch(() => setS({})); }, [name]);
+  const date = s?.timestampRegistered ? new Date(Number(s.timestampRegistered)).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—";
+  const Stat = ({ k, v, mono, href }) => (
+    <div className="flex items-center justify-between gap-3 py-3 border-b border-line last:border-0">
+      <span className="text-muted text-sm">{k}</span>
+      {href ? <a href={href} target="_blank" rel="noreferrer" className={`text-ergo-500 underline text-sm ${mono ? "font-mono" : ""} truncate`}>{v}</a>
+        : <span className={`text-ink text-sm ${mono ? "font-mono" : ""} truncate max-w-[60%] text-right`}>{v}</span>}
+    </div>
+  );
+  return (
+    <div className="grid md:grid-cols-2 gap-6 animate-fade-up">
+      <div className="rounded-3xl overflow-hidden border border-line shadow-soft aspect-square relative">
+        <HexArt name={name} className="w-full h-full" />
+        <div className="absolute inset-x-0 bottom-0 p-5 bg-gradient-to-t from-black/70 to-transparent">
+          <div className="text-white text-2xl font-semibold"><span className="text-ergo-400">~</span>{name}</div>
+        </div>
+      </div>
+      <div className="bg-surface border border-line rounded-3xl shadow-soft p-6">
+        <h3 className="text-ink font-semibold text-lg">Statistics</h3>
+        <div className="mt-2">
+          <Stat k="Status" v={<span className="text-mint font-semibold">Registered</span>} />
+          {s?.registrationNumber && <Stat k="Registration #" v={`#${s.registrationNumber}`} />}
+          <Stat k="Length" v={`${name.length} characters`} />
+          <Stat k="Registered" v={date} />
+          {s?.blockRegistered && <Stat k="Block" v={s.blockRegistered.toLocaleString()} />}
+          {s?.tokenId && <Stat k="Token" v={`${s.tokenId.slice(0, 10)}…`} mono href={`https://ergexplorer.com/token/${s.tokenId}`} />}
+          {s?.mintTransactionId && <Stat k="Mint tx" v="view ↗" href={txLink(s.mintTransactionId)} />}
+          {s?.owner && <Stat k="Owner" v={`${s.owner.slice(0, 8)}…${s.owner.slice(-6)}`} mono />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Detail: an in-progress mint (stepper + ring) ───────────────────────────
+function MintingDetail({ name }) {
+  const [t, setT] = useState(null);
+  useEffect(() => {
+    let live = true; const tick = () => getStatus(name).then((s) => live && setT(s)).catch(() => {});
+    tick(); const id = setInterval(tick, 12000); return () => { live = false; clearInterval(id); };
+  }, [name]);
+  const done = t ? stepsDone(t.state) : 1;
+  const reg = t?.state === "registered";
+  return (
+    <div className="bg-surface border border-line rounded-3xl shadow-soft p-6 sm:p-8 animate-fade-up">
+      <h2 className="text-center text-2xl text-ink font-semibold">Minting Process</h2>
+      <p className="text-center text-muted text-sm mt-1">Registering <span className="text-ink">~{name}</span> takes four steps</p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
+        {STEPS.map((step, i) => {
+          const isDone = i < done, isActive = i === done && !reg;
+          return (
+            <div key={i} className={`rounded-2xl p-4 border text-center flex flex-col items-center gap-2.5 transition-colors duration-500 ${isActive ? "bg-ergo-500 border-ergo-500 text-white" : "bg-surface border-line"}`}>
+              <span className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-semibold ${isDone ? "bg-mint text-[#06301d]" : isActive ? "bg-[#0B0D16] text-white animate-pulse-ring" : "bg-line text-muted"}`}>{isDone ? "✓" : i + 1}</span>
+              <span className={`text-xs leading-snug ${isActive ? "text-white" : "text-body"}`}>{step}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-8 flex flex-col items-center">
+        <div className="relative h-32 w-32">
+          <svg className="h-32 w-32 -rotate-90" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="52" fill="none" stroke="rgb(var(--line))" strokeWidth="10" />
+            <circle cx="60" cy="60" r="52" fill="none" stroke="#FF5537" strokeWidth="10" strokeLinecap="round"
+              strokeDasharray="327" strokeDashoffset={reg ? 0 : 327 - (327 * done) / 4} className="transition-all duration-700" />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-ergo-500">{reg ? "✓" : `${done}/4`}</div>
+        </div>
+        <p className={`mt-5 text-lg font-semibold ${reg ? "text-mint" : "text-ink"}`}>{reg ? `~${name} is yours 🎉` : "Almost there…"}</p>
+        <p className="mt-1 text-center text-muted text-sm max-w-sm">Your name is reserved while this completes — it isn&apos;t registered until the final step. You can close this page; it continues on-chain.</p>
+        {t?.registerTxId && <a className="mt-3 text-ergo-500 underline text-sm" target="_blank" rel="noreferrer" href={txLink(t.registerTxId)}>View on explorer ↗</a>}
+      </div>
+    </div>
+  );
+}
+
+// ── Detail: a failed/stuck mint (refund flow) ──────────────────────────────
+function FailedDetail({ name, revealValue, onRecovered }) {
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [doneTx, setDoneTx] = useState(null);
+  const recover = async () => {
+    setBusy(true); setMsg("");
+    try { const tx = await refundStuckMint(name, setMsg); setDoneTx(tx); setMsg(""); setTimeout(() => onRecovered?.(name), 5000); }
+    catch (e) { setMsg(`${e.message ?? e}`); }
+    setBusy(false);
+  };
+  return (
+    <div className="bg-surface border border-line rounded-3xl shadow-soft p-6 sm:p-8 max-w-lg mx-auto text-center animate-fade-up">
+      <div className="flex justify-center"><HexArt name={name} className="h-20 w-20 rounded-2xl opacity-70" /></div>
+      <h2 className="mt-5 text-xl text-ink font-semibold">Recover <span className="text-ergo-500">~</span>{name}</h2>
+      <p className="mt-2 text-muted text-sm">This registration didn&apos;t complete. Your funds are safe on-chain — only your wallet can release them, so you sign the refund.</p>
+      <div className="mt-5 bg-raised rounded-2xl p-4 flex items-center justify-between">
+        <span className="text-muted text-sm">Recoverable</span>
+        <span className="text-ink font-semibold">{(revealValue / 1e9).toFixed(4)} ERG</span>
+      </div>
+      {doneTx ? (
+        <div className="mt-5">
+          <p className="text-mint font-semibold">Refund sent 🎉</p>
+          <a className="text-ergo-500 underline text-sm" target="_blank" rel="noreferrer" href={txLink(doneTx)}>View transaction ↗</a>
+        </div>
+      ) : (
+        <button onClick={recover} disabled={busy}
+          className="mt-5 w-full py-3.5 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition disabled:opacity-50">
+          {busy ? (msg || "Working…") : "Recover my funds"}
+        </button>
+      )}
+      {msg && !busy && <p className="mt-3 text-sm text-red-500">{msg}</p>}
+    </div>
+  );
+}
+
 export default function RecordsPage() {
   const [address, setAddress] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [names, setNames] = useState(null);   // null = not loaded
+  const [owned, setOwned] = useState(null);
+  const [minting, setMinting] = useState([]);
   const [stuck, setStuck] = useState([]);
-  const [recovering, setRecovering] = useState({});
+  const [sel, setSel] = useState(null); // { name, kind }
   const short = (a) => `${a.slice(0, 5)}…${a.slice(-4)}`;
 
   const load = useCallback(async (addr) => {
     setBusy(true); setErr("");
     try {
-      const [n, s] = await Promise.all([getOwnedNames(), getStuckMints(addr)]);
-      // hide stuck entries that are actually already resolved/registered
-      const filtered = [];
-      for (const m of s) { try { const r = await resolveName(m.name); if (r.isAvailable !== false) filtered.push(m); } catch { filtered.push(m); } }
-      setNames(n); setStuck(filtered);
+      const [names, mints] = await Promise.all([getOwnedNames(), getMints(addr)]);
+      const ownedSet = new Set(names.map((n) => n.name));
+      setOwned(names);
+      setMinting(mints.minting.filter((n) => !ownedSet.has(n)));
+      setStuck(mints.stuck.filter((m) => !ownedSet.has(m.name)));
     } catch (e) { setErr(e.message ?? String(e)); }
     setBusy(false);
   }, []);
 
   const connect = async () => {
     setErr(""); setBusy(true);
-    try { const a = await connectWallet(); setAddress(a); await load(a); }
-    catch (e) { setErr(e.message ?? String(e)); }
+    try { const a = await connectWallet(); setAddress(a); await load(a); } catch (e) { setErr(e.message ?? String(e)); }
     setBusy(false);
   };
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.ergoConnector?.nautilus) {
+    if (typeof window !== "undefined" && window.ergoConnector?.nautilus)
       window.ergoConnector.nautilus.isConnected?.().then((c) => { if (c) connect(); }).catch(() => {});
-    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const recover = async (name) => {
-    setRecovering((r) => ({ ...r, [name]: "Recovering…" }));
-    try {
-      const tx = await refundStuckMint(name, (s) => setRecovering((r) => ({ ...r, [name]: s })));
-      setRecovering((r) => ({ ...r, [name]: `Recovered ✓` }));
-      setTimeout(() => { setStuck((s) => s.filter((m) => m.name !== name)); }, 4000);
-    } catch (e) { setRecovering((r) => ({ ...r, [name]: `⚠️ ${e.message ?? e}` })); }
-  };
+  const onRecovered = (name) => { setStuck((s) => s.filter((m) => m.name !== name)); setSel(null); };
+  const stuckOf = (n) => stuck.find((m) => m.name === n);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -66,80 +177,71 @@ export default function RecordsPage() {
           <div className="flex items-center gap-3">
             <Link href="/mint" className="text-sm text-white/70 hover:text-white transition hidden sm:block">Register</Link>
             <ThemeToggle />
-            {address ? (
-              <span className="flex items-center gap-2.5 px-4 py-2 rounded-full border border-white/20 text-sm"><span className="h-2 w-2 rounded-full bg-ergo-500" /> {short(address)}</span>
-            ) : (
-              <button onClick={connect} disabled={busy} className="px-5 py-2 rounded-full bg-ergo-500 hover:bg-ergo-600 text-white font-semibold text-sm transition disabled:opacity-50">{busy ? "Connecting…" : "Connect Wallet"}</button>
-            )}
+            {address ? <span className="flex items-center gap-2.5 px-4 py-2 rounded-full border border-white/20 text-sm"><span className="h-2 w-2 rounded-full bg-ergo-500" /> {short(address)}</span>
+              : <button onClick={connect} disabled={busy} className="px-5 py-2 rounded-full bg-ergo-500 hover:bg-ergo-600 text-white font-semibold text-sm transition disabled:opacity-50">{busy ? "Connecting…" : "Connect Wallet"}</button>}
           </div>
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-3xl mx-auto px-5 sm:px-8 pt-12 sm:pt-16 pb-24">
-        <h1 className="text-3xl sm:text-4xl text-ink font-semibold tracking-tight animate-fade-up">My Names</h1>
-        <p className="mt-2 text-muted animate-fade-up" style={{ animationDelay: "60ms" }}>The ErgoNames held by your connected wallet.</p>
-
-        {err && <div className="mt-6 p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-500 text-sm">{err}</div>}
-
-        {!address ? (
-          <div className="mt-10 bg-surface border border-line rounded-3xl shadow-soft p-10 text-center animate-scale-in">
-            <div className="flex justify-center animate-floaty"><HexLogo size={56} dark={false} /></div>
-            <p className="mt-5 text-body">Connect your wallet to see the names you own.</p>
-            <button onClick={connect} disabled={busy} className="mt-5 px-6 py-3 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition disabled:opacity-50">{busy ? "Connecting…" : "Connect Wallet"}</button>
-          </div>
+      <main className="flex-1 w-full max-w-4xl mx-auto px-5 sm:px-8 pt-12 sm:pt-16 pb-24">
+        {sel ? (
+          <>
+            <button onClick={() => setSel(null)} className="text-muted hover:text-ink transition text-sm mb-6">← Back to My Names</button>
+            {sel.kind === "minted" && <MintedDetail name={sel.name} />}
+            {sel.kind === "minting" && <MintingDetail name={sel.name} />}
+            {sel.kind === "failed" && <FailedDetail name={sel.name} revealValue={stuckOf(sel.name)?.revealValue ?? 0} onRecovered={onRecovered} />}
+          </>
         ) : (
           <>
-            {/* Stuck registrations — surfaced automatically */}
-            {stuck.length > 0 && (
-              <section className="mt-8 animate-fade-up">
-                <h2 className="text-lg font-semibold text-ink flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-ergo-500 animate-pulse" /> Stuck registrations
-                </h2>
-                <p className="text-muted text-sm mt-1">These didn&apos;t complete. Recover the funds back to your wallet.</p>
-                <div className="mt-3 flex flex-col gap-3">
-                  {stuck.map((m) => (
-                    <div key={m.name} className="bg-surface border border-ergo-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <Avatar seed={m.name} size={36} />
-                        <div className="min-w-0">
-                          <div className="text-ink truncate"><span className="text-ergo-500">~</span>{m.name}</div>
-                          <div className="text-muted text-xs">{(m.revealValue / 1e9).toFixed(4)} ERG recoverable</div>
-                        </div>
-                      </div>
-                      {recovering[m.name]
-                        ? <span className="text-sm text-muted shrink-0">{recovering[m.name]}</span>
-                        : <button onClick={() => recover(m.name)} className="px-4 py-2 rounded-full bg-ergo-500 hover:bg-ergo-600 text-white text-sm font-semibold transition shrink-0">Recover</button>}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+            <h1 className="text-3xl sm:text-4xl text-ink font-semibold tracking-tight animate-fade-up">My Names</h1>
+            <p className="mt-2 text-muted animate-fade-up" style={{ animationDelay: "60ms" }}>Everything tied to your wallet — owned, minting, and anything that needs recovering.</p>
+            {err && <div className="mt-6 p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-500 text-sm">{err}</div>}
 
-            {/* Owned names */}
-            <section className="mt-8">
-              {busy && names === null && <div className="text-muted text-sm animate-fade-in">Loading your names…</div>}
-              {names !== null && names.length === 0 && (
-                <div className="bg-surface border border-line rounded-3xl shadow-soft p-10 text-center animate-scale-in">
-                  <p className="text-body">You don&apos;t own any ErgoNames yet.</p>
-                  <Link href="/mint" className="inline-block mt-4 px-6 py-3 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition">Register your first name</Link>
-                </div>
-              )}
-              {names && names.length > 0 && (
-                <div className="grid sm:grid-cols-2 gap-3">
-                  {names.map((n, i) => (
-                    <a key={n.tokenId} href={txLink("")} onClick={(e) => e.preventDefault()}
-                      className="bg-surface border border-line rounded-2xl p-4 flex items-center gap-3 hover:border-ergo-500/40 transition animate-fade-up"
-                      style={{ animationDelay: `${i * 40}ms` }}>
-                      <Avatar seed={n.name} />
-                      <div className="min-w-0">
-                        <div className="text-ink text-lg truncate"><span className="text-ergo-500">~</span>{n.name}</div>
-                        <div className="text-muted text-xs truncate">{n.tokenId.slice(0, 16)}…</div>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              )}
-            </section>
+            {!address ? (
+              <div className="mt-10 bg-surface border border-line rounded-3xl shadow-soft p-10 text-center animate-scale-in">
+                <div className="flex justify-center animate-floaty"><HexLogo size={56} /></div>
+                <p className="mt-5 text-body">Connect your wallet to see the names you own.</p>
+                <button onClick={connect} disabled={busy} className="mt-5 px-6 py-3 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition disabled:opacity-50">{busy ? "Connecting…" : "Connect Wallet"}</button>
+              </div>
+            ) : busy && owned === null ? (
+              <div className="mt-8 text-muted text-sm animate-fade-in">Loading your names…</div>
+            ) : (
+              <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {stuck.map((m) => (
+                  <button key={`f-${m.name}`} onClick={() => setSel({ name: m.name, kind: "failed" })}
+                    className="text-left bg-surface border border-ergo-500/40 rounded-3xl shadow-soft overflow-hidden hover:-translate-y-0.5 transition animate-fade-up">
+                    <div className="aspect-[16/10] relative"><HexArt name={m.name} className="w-full h-full opacity-60" />
+                      <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-ergo-500 text-white text-[11px] font-semibold">Needs recovery</span></div>
+                    <div className="p-4"><div className="text-ink text-lg truncate"><span className="text-ergo-500">~</span>{m.name}</div>
+                      <div className="text-muted text-xs">{(m.revealValue / 1e9).toFixed(4)} ERG recoverable →</div></div>
+                  </button>
+                ))}
+                {minting.map((n) => (
+                  <button key={`m-${n}`} onClick={() => setSel({ name: n, kind: "minting" })}
+                    className="text-left bg-surface border border-line rounded-3xl shadow-soft overflow-hidden hover:-translate-y-0.5 transition animate-fade-up">
+                    <div className="aspect-[16/10] relative"><HexArt name={n} className="w-full h-full opacity-70" />
+                      <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-[#0B0D16] text-white text-[11px] font-semibold flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-ergo-500 animate-pulse" />Minting</span></div>
+                    <div className="p-4"><div className="text-ink text-lg truncate"><span className="text-ergo-500">~</span>{n}</div>
+                      <div className="text-muted text-xs">In progress · tap for status →</div></div>
+                  </button>
+                ))}
+                {(owned || []).map((n, i) => (
+                  <button key={n.tokenId} onClick={() => setSel({ name: n.name, kind: "minted" })}
+                    className="text-left bg-surface border border-line rounded-3xl shadow-soft overflow-hidden hover:-translate-y-0.5 transition animate-fade-up" style={{ animationDelay: `${i * 40}ms` }}>
+                    <div className="aspect-[16/10] relative"><HexArt name={n.name} className="w-full h-full" />
+                      <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-mint/90 text-[#06301d] text-[11px] font-semibold">Owned</span></div>
+                    <div className="p-4"><div className="text-ink text-lg truncate"><span className="text-ergo-500">~</span>{n.name}</div>
+                      <div className="text-muted text-xs truncate">tap for details →</div></div>
+                  </button>
+                ))}
+                {owned !== null && owned.length === 0 && minting.length === 0 && stuck.length === 0 && (
+                  <div className="col-span-full bg-surface border border-line rounded-3xl shadow-soft p-10 text-center animate-scale-in">
+                    <p className="text-body">You don&apos;t own any ErgoNames yet.</p>
+                    <Link href="/mint" className="inline-block mt-4 px-6 py-3 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition">Register your first name</Link>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </main>
