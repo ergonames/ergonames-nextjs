@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { resolveName, mintErgoName, connectWallet, getStatus, txLink, refundStuckMint } from "../lib/ergonames";
+import { resolveName, mintErgoName, connectWallet, getStatus, txLink, refundStuckMint, getQuote } from "../lib/ergonames";
 import HexLogo from "../components/HexLogo";
 import ThemeToggle from "../components/ThemeToggle";
 import Link from "next/link";
@@ -11,6 +11,36 @@ function Avatar({ seed, size = 40 }) {
   return <span style={{ width: size, height: size, background: bg }} className="rounded-full shrink-0" />;
 }
 
+const erg = (n) => `${(n / 1e9).toFixed(4)} ERG`;
+
+// Plain-language cost breakdown so the user sees exactly what they pay for.
+function PriceBreakdown({ q }) {
+  const usd = (n) => (n / q.nanoErgPerUsd);
+  const Row = ({ label, hint, nano, strong }) => (
+    <div className="flex items-start justify-between gap-3 py-2">
+      <div>
+        <div className={strong ? "text-ink font-semibold" : "text-body"}>{label}</div>
+        {hint && <div className="text-muted text-xs">{hint}</div>}
+      </div>
+      <div className="text-right shrink-0">
+        <div className={strong ? "text-ink font-semibold" : "text-body"}>{erg(nano)}</div>
+        <div className="text-muted text-xs">≈ ${usd(nano).toFixed(usd(nano) < 0.1 ? 4 : 2)}</div>
+      </div>
+    </div>
+  );
+  return (
+    <div className="rounded-2xl bg-raised border border-line p-4">
+      <Row label="Name price" hint="The cost of the name itself" nano={q.priceNanoErg} />
+      <div className="border-t border-line" />
+      <Row label="Network fee" hint="Ergo blockchain miner fees (4 transactions)" nano={q.networkFeeNanoErg} />
+      <Row label="Service fee" hint="Runs the automated registration for you" nano={q.serviceFeeNanoErg} />
+      <Row label="Deposit" hint="Stays in your name's NFT box — remains yours" nano={q.depositNanoErg} />
+      <div className="border-t border-line mt-1" />
+      <Row label="Total" nano={q.totalNanoErg} strong />
+    </div>
+  );
+}
+
 const STEPS = ["Enter the minting queue", "Wait for the commit to confirm", "Reveal & register", "Receive your ErgoName"];
 const stepsDone = (s) => ({ not_found: 1, queued: 1, revealing: 2, registering: 3, registered: 4, refunded: 0 }[s] ?? 0);
 
@@ -19,7 +49,7 @@ export default function MintPage() {
   const [status, setStatus] = useState(""); const [tracked, setTracked] = useState(null);
   const [busy, setBusy] = useState(false); const [address, setAddress] = useState(null);
   const [walletErr, setWalletErr] = useState(""); const [detected, setDetected] = useState(null);
-  const [connectStep, setConnectStep] = useState(""); const pollRef = useRef(null);
+  const [connectStep, setConnectStep] = useState(""); const [quote, setQuote] = useState(null); const pollRef = useRef(null);
 
   useEffect(() => {
     let t = 0; const id = setInterval(() => {
@@ -31,11 +61,14 @@ export default function MintPage() {
   const clean = (n) => n.trim().replace(/^~/, ""); const short = (a) => `${a.slice(0, 5)}…${a.slice(-4)}`;
   const connect = async () => { setWalletErr(""); setConnectStep(""); setBusy(true);
     try { setAddress(await connectWallet(setConnectStep)); setConnectStep(""); } catch (e) { setWalletErr(e.message ?? String(e)); setConnectStep(""); } setBusy(false); };
-  const check = async () => { setResult(null); setStatus(""); setTracked(null);
+  const check = async () => { setResult(null); setStatus(""); setTracked(null); setQuote(null);
     const c = clean(name);
     if (!/^[a-zA-Z0-9_]{1,25}$/.test(c)) { setResult({ error: "Names are 1–25 chars: letters, numbers, underscore." }); return; }
     if (c.length < 8) { setResult({ error: "During the testing phase, only names with 8 or more characters can be registered." }); return; }
-    setBusy(true); try { setResult(await resolveName(c)); } catch { setResult({ error: "Couldn't reach the name service. Try again." }); } setBusy(false); };
+    setBusy(true);
+    try { const r = await resolveName(c); setResult(r); if (r.isAvailable) getQuote(c).then(setQuote); }
+    catch { setResult({ error: "Couldn't reach the name service. Try again." }); }
+    setBusy(false); };
   const startTracking = (c) => { if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => { try { const s = await getStatus(c); setTracked(s);
       if (s.state === "registered" || s.state === "refunded") clearInterval(pollRef.current); } catch {} }, 15000); };
@@ -102,7 +135,9 @@ export default function MintPage() {
                 : <span className="px-3.5 py-1.5 rounded-full bg-raised text-muted text-sm font-semibold shrink-0">Taken</span>}</div>
             {result.isAvailable ? (
               <div className="mt-5 flex flex-col gap-3">
-                <p className="text-muted text-sm">Price: <span className="text-ink font-medium">${result.mintCost}</span> in ERG, at the live oracle rate.</p>
+                {quote ? <PriceBreakdown q={quote} />
+                  : <p className="text-muted text-sm">Price: <span className="text-ink font-medium">${result.mintCost}</span> · loading breakdown…</p>}
+                <p className="text-muted text-xs text-center">Prices update live with the ERG/USD oracle.</p>
                 {!address
                   ? <button onClick={connect} disabled={busy} className="py-3.5 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition disabled:opacity-50">Connect wallet to register</button>
                   : <button onClick={mint} disabled={busy} className="py-3.5 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition disabled:opacity-50">{busy ? "Working…" : `Register ~${c}`}</button>}

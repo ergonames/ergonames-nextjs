@@ -95,6 +95,18 @@ export async function getStuckMints(address: string): Promise<StuckMint[]> {
   } catch { return []; }
 }
 
+export interface Quote {
+  name: string; priceCents: number; nanoErgPerUsd: number;
+  priceNanoErg: number; networkFeeNanoErg: number;
+  serviceFeeNanoErg: number; depositNanoErg: number; totalNanoErg: number;
+}
+
+// Live, itemised cost breakdown for a name.
+export async function getQuote(name: string): Promise<Quote | null> {
+  try { return await (await fetch(`${BOT_URL}/quote/${name}`)).json(); }
+  catch { return null; }
+}
+
 export interface MintsForAddress { minting: string[]; stuck: StuckMint[]; }
 
 // In-progress + stuck mints for a wallet (so they show in My Names too).
