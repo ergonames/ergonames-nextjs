@@ -3,14 +3,22 @@ import { useState, useRef, useEffect } from "react";
 import { resolveName, mintErgoName, connectWallet, getStatus, txLink, refundStuckMint } from "../lib/ergonames";
 import HexLogo from "../components/HexLogo";
 
-const STATE_COPY = {
-  queued: "Queued — waiting for the registration bot…",
-  revealing: "Revealing your registration on-chain…",
-  registering: "Registering your name… (a few blocks)",
-  registered: "Registered 🎉",
-  refunded: "Couldn't complete — your funds were refunded.",
-  not_found: "Submitted — the bot is picking it up…",
-};
+// Deterministic gradient avatar per name (like the Figma orb).
+function Avatar({ seed, size = 40 }) {
+  let h = 0; for (const c of seed) h = (h * 31 + c.charCodeAt(0)) % 360;
+  const bg = `linear-gradient(135deg, hsl(${h} 90% 62%), hsl(${(h + 50) % 360} 90% 55%))`;
+  return <span style={{ width: size, height: size, background: bg }} className="rounded-full shrink-0" />;
+}
+
+const STEPS = [
+  "Enter the ErgoNames minting queue",
+  "Wait ~2 blocks for the commit to confirm",
+  "Reveal & register your name",
+  "Receive your ErgoName",
+];
+// Map bot status -> how many of the 4 steps are complete.
+const stepsDone = (state) =>
+  ({ not_found: 1, queued: 1, revealing: 2, registering: 3, registered: 4, refunded: 0 }[state] ?? 0);
 
 export default function MintPage() {
   const [name, setName] = useState("");
@@ -24,6 +32,7 @@ export default function MintPage() {
   const [connectStep, setConnectStep] = useState("");
   const [recoverName, setRecoverName] = useState("");
   const [recoverMsg, setRecoverMsg] = useState("");
+  const [showRecover, setShowRecover] = useState(false);
   const pollRef = useRef(null);
 
   useEffect(() => {
@@ -36,7 +45,7 @@ export default function MintPage() {
   }, []);
 
   const clean = (n) => n.trim().replace(/^~/, "");
-  const short = (a) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+  const short = (a) => `${a.slice(0, 5)}…${a.slice(-4)}`;
 
   const connect = async () => {
     setWalletErr(""); setConnectStep(""); setBusy(true);
@@ -44,18 +53,15 @@ export default function MintPage() {
     catch (e) { setWalletErr(e.message ?? String(e)); setConnectStep(""); }
     setBusy(false);
   };
-
   const check = async () => {
     setResult(null); setStatus(""); setTracked(null);
     const c = clean(name);
     if (!/^[a-zA-Z0-9_]{1,25}$/.test(c)) { setResult({ error: "Names are 1–25 chars: letters, numbers, underscore." }); return; }
     if (c.length < 8) { setResult({ error: "During the testing phase, only names with 8 or more characters can be registered." }); return; }
     setBusy(true);
-    try { setResult(await resolveName(c)); }
-    catch { setResult({ error: "Couldn't reach the name service. Try again." }); }
+    try { setResult(await resolveName(c)); } catch { setResult({ error: "Couldn't reach the name service. Try again." }); }
     setBusy(false);
   };
-
   const startTracking = (c) => {
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => {
@@ -64,155 +70,176 @@ export default function MintPage() {
       } catch {}
     }, 15000);
   };
-
   const mint = async () => {
     const c = clean(name);
     setBusy(true); setStatus(""); setTracked(null);
     try { await mintErgoName(c, address, setStatus); setStatus(""); setTracked({ state: "not_found" }); startTracking(c); }
-    catch (e) { setStatus(`⚠️ ${e.message ?? e}`); }
+    catch (e) { setStatus(`${e.message ?? e}`); }
     setBusy(false);
   };
-
   const recover = async () => {
     if (!address) { setRecoverMsg("Connect your wallet first."); return; }
     setBusy(true); setRecoverMsg("");
-    try { await refundStuckMint(clean(recoverName), setRecoverMsg); }
-    catch (e) { setRecoverMsg(`⚠️ ${e.message ?? e}`); }
+    try { await refundStuckMint(clean(recoverName), setRecoverMsg); } catch (e) { setRecoverMsg(`${e.message ?? e}`); }
     setBusy(false);
   };
 
+  const c = clean(name);
+  const done = tracked ? stepsDone(tracked.state) : 0;
+
   return (
-    <main className="relative z-10 min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between px-6 sm:px-10 py-5">
-        <div className="flex items-center gap-2.5">
-          <HexLogo size={34} />
-          <span className="font-display text-xl font-bold tracking-tight">ErgoNames</span>
-          <span className="ml-1 px-2 py-0.5 rounded-full bg-ergo-500/15 border border-ergo-500/40 text-ergo-400 text-[10px] font-bold tracking-widest">BETA</span>
+    <div className="min-h-screen flex flex-col bg-page">
+      {/* Black header */}
+      <header className="bg-ink text-white">
+        <div className="max-w-6xl mx-auto px-6 sm:px-8 h-[76px] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <HexLogo size={32} />
+            <span className="text-lg tracking-wide"><b className="font-bold">ERGO</b><span className="font-light">NAMES</span></span>
+            <span className="ml-1 px-2 py-0.5 rounded-full border border-ergo-500/60 text-ergo-400 text-[10px] font-bold tracking-widest">BETA</span>
+          </div>
+          {address ? (
+            <span className="flex items-center gap-2.5 px-4 py-2 rounded-full border border-white/20 text-sm">
+              <span className="h-2 w-2 rounded-full bg-ergo-500" /> {short(address)}
+            </span>
+          ) : (
+            <button onClick={connect} disabled={busy}
+              className="px-5 py-2 rounded-full bg-ergo-500 hover:bg-ergo-600 text-white font-semibold text-sm transition disabled:opacity-50">
+              {busy ? "Connecting…" : "Connect Wallet"}
+            </button>
+          )}
         </div>
-        {address ? (
-          <span className="glass text-sm px-3.5 py-2 rounded-full border border-ink-700 flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-mint" /> {short(address)}
-          </span>
-        ) : (
-          <button onClick={connect} disabled={busy}
-            className="px-5 py-2 rounded-full bg-ergo-gradient text-white font-semibold text-sm shadow-glow hover:brightness-110 transition disabled:opacity-50">
-            {busy ? "Connecting…" : "Connect Wallet"}
-          </button>
-        )}
       </header>
 
-      {/* Hero */}
-      <section className="flex-1 flex flex-col items-center px-6 pt-10 sm:pt-16 pb-24 w-full">
-        <div className="w-full max-w-2xl flex flex-col items-center gap-7">
-          <div className="animate-floaty"><HexLogo size={64} /></div>
-          <h1 className="font-display text-4xl sm:text-6xl font-bold text-center tracking-tight leading-[1.05]">
-            Your name,<br />
-            <span className="bg-ergo-gradient bg-clip-text text-transparent">on Ergo.</span>
-          </h1>
-          <p className="text-center text-white/55 max-w-md">
-            Claim a human-readable <span className="text-white/80">~name</span> on the Ergo blockchain — yours, in your wallet.
-          </p>
+      <main className="flex-1 w-full max-w-3xl mx-auto px-5 sm:px-8 pt-14 sm:pt-20 pb-24 flex flex-col items-center">
+        {/* Hero */}
+        <h1 className="text-4xl sm:text-5xl text-center text-ink font-light tracking-tight">
+          Your <span className="font-bold">web3</span> username
+        </h1>
+        <p className="mt-4 text-center text-muted max-w-md leading-relaxed">
+          Your identity across web3. One name for all your crypto addresses, on the Ergo blockchain.
+        </p>
 
-          {/* Search */}
-          <div className="w-full mt-2">
-            <div className="glass flex items-center gap-2 p-2 rounded-2xl border border-ink-700 focus-within:border-ergo-500/60 transition shadow-card">
-              <span className="pl-3 text-ergo-500 text-2xl font-display font-bold">~</span>
-              <input
-                className="flex-1 bg-transparent px-1 py-3 text-lg placeholder:text-white/30 focus:outline-none"
-                placeholder="yourname" value={name}
-                onChange={(e) => setName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && check()} />
-              <button onClick={check} disabled={busy}
-                className="px-6 py-3 rounded-xl bg-ergo-gradient text-white font-semibold shadow-glow hover:brightness-110 transition disabled:opacity-50">
-                {busy ? "…" : "Search"}
-              </button>
-            </div>
+        {/* Search */}
+        <div className="w-full mt-9 flex items-stretch rounded-full bg-white border border-line shadow-soft overflow-hidden focus-within:border-ergo-500/50 transition">
+          <span className="pl-5 self-center text-ergo-500 text-xl font-bold">~</span>
+          <input
+            className="flex-1 px-3 py-4 bg-transparent text-lg text-ink placeholder:text-muted/70 focus:outline-none"
+            placeholder="Search for a name" value={name}
+            onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && check()} />
+          <button onClick={check} disabled={busy}
+            className="px-7 bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition disabled:opacity-50 flex items-center">
+            {busy ? "…" : "Search"}
+          </button>
+        </div>
+
+        {/* Wallet diagnostics */}
+        {detected === false && (
+          <div className="w-full mt-5 p-3 rounded-2xl bg-red-50 border border-red-200 text-red-600 text-sm text-center">
+            Nautilus wallet not detected. Install the{" "}
+            <a className="underline" href="https://chromewebstore.google.com/detail/nautilus-wallet/gjlmehlldlphhljhpnlddaodbjjcchai" target="_blank" rel="noreferrer">Nautilus extension</a> and reload.
           </div>
+        )}
+        {connectStep && <div className="w-full mt-5 p-3 rounded-2xl bg-white border border-line text-muted text-sm text-center">{connectStep}</div>}
+        {walletErr && <div className="w-full mt-5 p-3 rounded-2xl bg-red-50 border border-red-200 text-red-600 text-sm text-center">{walletErr}</div>}
+        {result?.error && <p className="w-full mt-5 text-center text-red-500 text-sm">{result.error}</p>}
 
-          {/* Wallet diagnostics */}
-          {detected === false && (
-            <div className="w-full p-3 rounded-xl bg-red-500/10 border border-red-500/40 text-red-300 text-sm text-center">
-              Nautilus wallet not detected. Install the{" "}
-              <a className="underline" href="https://chromewebstore.google.com/detail/nautilus-wallet/gjlmehlldlphhljhpnlddaodbjjcchai" target="_blank" rel="noreferrer">Nautilus extension</a> and reload.
+        {/* Result card */}
+        {result && !result.error && result.isValid && !tracked && (
+          <div className="w-full mt-6 bg-white border border-line rounded-3xl shadow-soft p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar seed={c || "x"} />
+                <span className="text-xl text-ink truncate"><span className="text-ergo-500">~</span>{result.isAvailable ? c : result.ergoname}</span>
+              </div>
+              {result.isAvailable
+                ? <span className="px-3.5 py-1.5 rounded-full bg-availbg text-availfg text-sm font-semibold shrink-0">Available</span>
+                : <span className="px-3.5 py-1.5 rounded-full bg-page text-muted text-sm font-semibold shrink-0">Taken</span>}
             </div>
-          )}
-          {connectStep && <div className="w-full glass p-3 rounded-xl border border-ink-700 text-white/70 text-sm text-center">{connectStep}</div>}
-          {walletErr && <div className="w-full p-3 rounded-xl bg-red-500/10 border border-red-500/40 text-red-300 text-sm text-center">{walletErr}</div>}
+            {result.isAvailable ? (
+              <div className="mt-5 flex flex-col gap-3">
+                <p className="text-muted text-sm">Price: <span className="text-ink font-medium">${result.mintCost}</span> in ERG, at the live oracle rate.</p>
+                {!address ? (
+                  <button onClick={connect} disabled={busy}
+                    className="py-3.5 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition disabled:opacity-50">
+                    Connect wallet to register
+                  </button>
+                ) : (
+                  <button onClick={mint} disabled={busy}
+                    className="py-3.5 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition disabled:opacity-50">
+                    {busy ? "Working…" : `Register ~${c}`}
+                  </button>
+                )}
+              </div>
+            ) : (
+              result.owner && <p className="mt-3 text-muted text-xs break-all">Owner: {result.owner}</p>
+            )}
+          </div>
+        )}
 
-          {/* Result */}
-          {result?.error && <p className="text-red-400 text-center text-sm">{result.error}</p>}
-          {result && !result.error && result.isValid && !tracked && (
-            <div className="w-full glass rounded-2xl border border-ink-700 p-6 flex flex-col gap-4 shadow-card">
-              {result.isAvailable ? (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="font-display text-2xl"><span className="text-ergo-500">~</span>{clean(name)}</span>
-                    <span className="flex items-center gap-1.5 text-mint text-sm font-semibold"><span className="h-2 w-2 rounded-full bg-mint" />available</span>
+        {busy && status && <p className="w-full mt-5 text-center text-muted text-sm">{status}</p>}
+        {!busy && status && <p className="w-full mt-5 text-center text-red-500 text-sm">{status}</p>}
+
+        {/* Minting process stepper */}
+        {tracked && (
+          <div className="w-full mt-6 bg-white border border-line rounded-3xl shadow-soft p-6 sm:p-8">
+            <h2 className="text-center text-2xl text-ink font-semibold">Minting Process</h2>
+            <p className="text-center text-muted text-sm mt-1">Registering your name takes four steps</p>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
+              {STEPS.map((s, i) => {
+                const isDone = i < done, isActive = i === done && tracked.state !== "registered";
+                return (
+                  <div key={i} className={`rounded-2xl p-4 border text-center flex flex-col items-center gap-2.5
+                    ${isActive ? "bg-ergo-500 border-ergo-500 text-white" : "bg-white border-line"}`}>
+                    <span className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-semibold
+                      ${isDone ? "bg-ink text-white" : isActive ? "bg-ink text-white" : "bg-ergo-500 text-white"}`}>
+                      {isDone ? "✓" : i + 1}
+                    </span>
+                    <span className={`text-xs leading-snug ${isActive ? "text-white" : "text-body"}`}>{s}</span>
                   </div>
-                  <p className="text-white/50 text-sm">Price: <span className="text-white/80">${result.mintCost}</span> in ERG (at the live oracle rate).</p>
-                  {!address ? (
-                    <button onClick={connect} disabled={busy}
-                      className="py-3.5 rounded-xl bg-ergo-gradient text-white font-semibold shadow-glow hover:brightness-110 transition disabled:opacity-50">
-                      Connect wallet to register
-                    </button>
-                  ) : (
-                    <button onClick={mint} disabled={busy}
-                      className="py-3.5 rounded-xl bg-ergo-gradient text-white font-semibold shadow-glow hover:brightness-110 transition disabled:opacity-50">
-                      {busy ? "Working…" : `Register ~${clean(name)}`}
-                    </button>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="font-display text-2xl"><span className="text-ergo-500">~</span>{result.ergoname}</span>
-                    <span className="text-white/40 text-sm font-semibold">taken</span>
-                  </div>
-                  {result.owner && <p className="text-white/45 text-xs break-all">Owner: {result.owner}</p>}
-                </>
-              )}
+                );
+              })}
             </div>
-          )}
 
-          {busy && status && <p className="text-white/70 text-center text-sm">{status}</p>}
-          {!busy && status && <p className="text-red-400 text-center text-sm max-w-md">{status}</p>}
-
-          {/* Mint progress */}
-          {tracked && (
-            <div className="w-full glass rounded-2xl border border-ink-700 p-6 flex flex-col gap-3 text-center shadow-card">
-              <p className={`font-display text-lg ${tracked.state === "registered" ? "text-mint" : tracked.state === "refunded" ? "text-amber-400" : "text-white/85"}`}>
-                {STATE_COPY[tracked.state] ?? tracked.state}
+            <div className="mt-7 pt-6 border-t border-line text-center">
+              <p className={`text-lg font-semibold ${tracked.state === "registered" ? "text-availfg" : tracked.state === "refunded" ? "text-ergo-600" : "text-ink"}`}>
+                {tracked.state === "registered" ? `~${c} is yours 🎉`
+                  : tracked.state === "refunded" ? "Couldn't complete — your funds were refunded."
+                  : "Transaction sent — your name is being registered…"}
               </p>
-              {tracked.state === "registered" && <p className="text-white/55 text-sm">~{clean(name)} is now yours.</p>}
-              {tracked.registerTxId && <a className="text-ergo-400 underline text-sm" target="_blank" rel="noreferrer" href={txLink(tracked.registerTxId)}>view registration tx ↗</a>}
-              {tracked.refundTxId && <a className="text-ergo-400 underline text-sm" target="_blank" rel="noreferrer" href={txLink(tracked.refundTxId)}>view refund tx ↗</a>}
-              {!["registered", "refunded"].includes(tracked.state) && <p className="text-white/35 text-xs">You can close this page — registration continues on-chain.</p>}
+              <div className="mt-3 flex flex-col items-center gap-1">
+                {tracked.registerTxId && <a className="text-ergo-500 underline text-sm" target="_blank" rel="noreferrer" href={txLink(tracked.registerTxId)}>View on explorer ↗</a>}
+                {tracked.refundTxId && <a className="text-ergo-500 underline text-sm" target="_blank" rel="noreferrer" href={txLink(tracked.refundTxId)}>View refund tx ↗</a>}
+                {!["registered", "refunded"].includes(tracked.state) && <span className="text-muted text-xs">You can close this page — it continues on-chain.</span>}
+              </div>
             </div>
-          )}
-
-          {/* Beta notice */}
-          <div className="w-full mt-2 p-4 rounded-2xl bg-amber-400/[0.07] border border-amber-400/25 text-amber-200/90 text-sm">
-            <span className="font-semibold">Testing phase.</span> ErgoNames is in beta — names registered now may be{" "}
-            <span className="font-semibold">purged before the public launch</span>, so don't rely on them yet. Only 8+ character names for now.
           </div>
+        )}
 
-          {/* Recovery */}
-          <details className="w-full text-sm text-white/60">
-            <summary className="cursor-pointer hover:text-white/80 transition">Recover a stuck registration</summary>
+        {/* Beta notice */}
+        <div className="w-full mt-6 p-4 rounded-2xl bg-ergo-500/[0.06] border border-ergo-500/25 text-body text-sm">
+          <span className="font-semibold text-ergo-600">Testing phase.</span> Names registered now are for testing and{" "}
+          <span className="font-semibold">may be purged before the public launch</span> — please don&apos;t rely on them yet. Only 8+ character names for now.
+        </div>
+
+        {/* Recovery */}
+        <div className="w-full mt-4 text-sm">
+          <button onClick={() => setShowRecover(!showRecover)} className="text-muted hover:text-ink transition">
+            {showRecover ? "▾" : "▸"} Recover a stuck registration
+          </button>
+          {showRecover && (
             <div className="mt-3 flex flex-col gap-2">
-              <p className="text-white/45">If a registration didn&apos;t complete, recover the funds back to your wallet.</p>
+              <p className="text-muted">If a registration didn&apos;t complete, recover the funds back to your wallet.</p>
               <div className="flex gap-2">
-                <input className="flex-1 glass px-3 py-2 rounded-xl border border-ink-700 focus:outline-none focus:border-ergo-500/60"
+                <input className="flex-1 px-4 py-2.5 rounded-full bg-white border border-line focus:outline-none focus:border-ergo-500/50"
                   placeholder="name to recover" value={recoverName} onChange={(e) => setRecoverName(e.target.value)} />
                 <button onClick={recover} disabled={busy || !recoverName}
-                  className="px-4 py-2 rounded-xl border border-ink-700 hover:bg-ink-800 font-semibold transition disabled:opacity-50">Recover</button>
+                  className="px-5 py-2.5 rounded-full border border-line bg-white hover:bg-page font-semibold transition disabled:opacity-50">Recover</button>
               </div>
-              {recoverMsg && <p className="text-white/70">{recoverMsg}</p>}
+              {recoverMsg && <p className="text-body">{recoverMsg}</p>}
             </div>
-          </details>
+          )}
         </div>
-      </section>
-    </main>
+      </main>
+    </div>
   );
 }

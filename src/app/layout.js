@@ -1,20 +1,17 @@
-import { Space_Grotesk, Inter } from "next/font/google";
+import { Poppins } from "next/font/google";
 import "./globals.css";
 
-const display = Space_Grotesk({ subsets: ["latin"], variable: "--font-display", weight: ["500", "600", "700"] });
-const body = Inter({ subsets: ["latin"], variable: "--font-body" });
+const poppins = Poppins({ subsets: ["latin"], variable: "--font-display", weight: ["400", "500", "600", "700"] });
 
 export const metadata = {
-  title: "ErgoNames — your name on Ergo",
-  description: "Register a human-readable name on the Ergo blockchain.",
+  title: "ErgoNames — your web3 username",
+  description: "One name for all your crypto addresses, on the Ergo blockchain.",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable}`}>
-      <body className="font-sans hex-bg aura" style={{ margin: 0 }}>
-        {children}
-      </body>
+    <html lang="en" className={poppins.variable}>
+      <body className="font-sans" style={{ margin: 0 }}>{children}</body>
     </html>
   );
 }
