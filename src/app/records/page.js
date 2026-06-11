@@ -145,7 +145,9 @@ export default function RecordsPage() {
       const ownedSet = new Set(names.map((n) => n.name));
       setOwned(names);
       setMinting(mints.minting.filter((n) => !ownedSet.has(n)));
-      setStuck(mints.stuck.filter((m) => !ownedSet.has(m.name)));
+      // Never hide stuck entries behind owned names: a duplicate-mint can leave
+      // a recoverable reveal box for a name the wallet also owns.
+      setStuck(mints.stuck);
     } catch (e) { setErr(e.message ?? String(e)); }
     setBusy(false);
   }, []);
