@@ -308,6 +308,13 @@ export async function mintErgoName(
     throw new Error(`~${name} was just registered by someone else.`);
   }
 
+  // Backstop (the UI checks too): never start a second mint for a name that's
+  // already in flight — it would orphan the first attempt's funds.
+  const inFlight = await getStatus(name).catch(() => null);
+  if (inFlight && ["queued", "revealing", "registering"].includes(inFlight.state)) {
+    throw new Error(`~${name} is already being registered — check My Names for progress.`);
+  }
+
   const utxos = (await withTimeout(wallet.get_utxos(), 30000, "Reading wallet boxes")) as any[];
 
   onProgress("Fetching price and parameters…");

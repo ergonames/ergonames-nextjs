@@ -74,6 +74,12 @@ export default function MintPage() {
     pollRef.current = setInterval(async () => { try { const s = await getStatus(c); setTracked(s);
       if (s.state === "registered" || s.state === "refunded") clearInterval(pollRef.current); } catch {} }, 15000); };
   const mint = async () => { const c = clean(name); setBusy(true); setStatus(""); setTracked(null);
+    // If a previous attempt is already in flight, resume tracking it instead of
+    // minting again (a duplicate would orphan the first attempt's funds).
+    const inFlight = await getStatus(c).catch(() => null);
+    if (inFlight && ["queued", "revealing", "registering"].includes(inFlight.state)) {
+      setTracked(inFlight); startTracking(c); setBusy(false); return;
+    }
     try { await mintErgoName(c, address, setStatus); setStatus(""); setTracked({ state: "not_found" }); startTracking(c); } catch (e) { setStatus(`${e.message ?? e}`); } setBusy(false); };
 
   const c = clean(name); const done = tracked ? stepsDone(tracked.state) : 0;
