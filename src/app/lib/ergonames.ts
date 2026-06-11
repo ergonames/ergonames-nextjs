@@ -81,18 +81,38 @@ export async function connectWallet(): Promise<string> {
       "Nautilus wallet not found. Install the Nautilus extension in Chrome or Firefox, then reload this page.",
     );
   }
-  console.log("[ergonames] requesting Nautilus connection…");
-  const granted = await withTimeout(
-    ergoConnector.nautilus.connect(),
-    60000,
-    "Wallet connection",
-  );
-  console.log("[ergonames] connect() returned:", granted);
-  if (!granted) throw new Error("Connection request was declined in Nautilus.");
-  if (typeof ergo === "undefined") {
-    throw new Error("Wallet connected but context not injected. Reload the page and try again.");
+  const nautilus = ergoConnector.nautilus;
+
+  // If the site is already authorized, calling connect() again can hang
+  // forever (Nautilus won't re-prompt). Check first and skip straight to the
+  // context.
+  let already = false;
+  try {
+    if (typeof nautilus.isConnected === "function") {
+      already = await withTimeout(nautilus.isConnected(), 5000, "Wallet check");
+    }
+  } catch {
+    already = false;
   }
-  const address = (await withTimeout(ergo.get_change_address(), 30000, "Reading wallet address")) as string;
+  console.log("[ergonames] already connected?", already);
+
+  if (!already) {
+    console.log("[ergonames] requesting Nautilus connection…");
+    const granted = await withTimeout(nautilus.connect(), 60000, "Wallet connection");
+    console.log("[ergonames] connect() returned:", granted);
+    if (!granted) throw new Error("Connection request was declined in Nautilus.");
+  }
+
+  // Obtain the wallet context: the global `ergo` (createErgoObject default) or
+  // an explicit getContext() fallback.
+  let ctx: any = typeof ergo !== "undefined" ? ergo : null;
+  if (!ctx && typeof nautilus.getContext === "function") {
+    ctx = await withTimeout(nautilus.getContext(), 10000, "Wallet context");
+  }
+  if (!ctx) throw new Error("Wallet context unavailable. Reload the page and try again.");
+  (globalThis as any).__ergo = ctx;
+
+  const address = (await withTimeout(ctx.get_change_address(), 30000, "Reading wallet address")) as string;
   console.log("[ergonames] connected:", address);
   return address;
 }
@@ -136,7 +156,8 @@ export async function mintErgoName(
   userAddress: string,
   onProgress: MintProgress = () => {},
 ): Promise<{ commitTxId: string; proxyTxId: string }> {
-  if (typeof ergo === "undefined") {
+  const wallet: any = (globalThis as any).__ergo ?? (typeof ergo !== "undefined" ? ergo : null);
+  if (!wallet) {
     throw new Error("Wallet not connected. Click Connect Wallet first.");
   }
 
@@ -148,7 +169,7 @@ export async function mintErgoName(
     throw new Error(`~${name} was just registered by someone else.`);
   }
 
-  const utxos = (await withTimeout(ergo.get_utxos(), 30000, "Reading wallet boxes")) as any[];
+  const utxos = (await withTimeout(wallet.get_utxos(), 30000, "Reading wallet boxes")) as any[];
 
   onProgress("Fetching price and parameters…");
   const p = await botPost("/prepare", { name, userAddress });
@@ -221,8 +242,8 @@ export async function mintErgoName(
   onProgress("Awaiting wallet signature (1 of 2)…");
   let commitTxId: string;
   try {
-    const commitSigned = await ergo.sign_tx(commitEip12);
-    commitTxId = await ergo.submit_tx(commitSigned);
+    const commitSigned = await wallet.sign_tx(commitEip12);
+    commitTxId = await wallet.submit_tx(commitSigned);
   } catch (e) {
     // Nothing broadcast yet — safe to fail with a friendly message.
     throw new Error(friendlyError(e));
@@ -231,8 +252,8 @@ export async function mintErgoName(
   let proxyTxId: string;
   try {
     onProgress("Awaiting wallet signature (2 of 2)…");
-    const proxySigned = await ergo.sign_tx(proxyEip12);
-    proxyTxId = await ergo.submit_tx(proxySigned);
+    const proxySigned = await wallet.sign_tx(proxyEip12);
+    proxyTxId = await wallet.submit_tx(proxySigned);
   } catch (e) {
     throw new Error(
       "Your commit transaction was sent, but the second transaction was not " +
