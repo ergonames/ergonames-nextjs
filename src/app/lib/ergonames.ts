@@ -116,6 +116,84 @@ export async function connectWallet(onStep: (s: string) => void = () => {}): Pro
   return address;
 }
 
+const EXPLORER_API = "https://api.ergoplatform.com";
+
+// Converts an explorer box to the shape Fleet expects as a transaction input.
+function toFleetBox(b: any): any {
+  const regs: Record<string, string> = {};
+  for (const [k, v] of Object.entries(b.additionalRegisters || {})) {
+    regs[k] = typeof v === "string" ? v : (v as any).serializedValue;
+  }
+  return {
+    boxId: b.boxId,
+    value: BigInt(b.value).toString(),
+    ergoTree: b.ergoTree,
+    creationHeight: b.creationHeight,
+    assets: (b.assets || []).map((a: any) => ({ tokenId: a.tokenId, amount: BigInt(a.amount).toString() })),
+    additionalRegisters: regs,
+    transactionId: b.transactionId,
+    index: b.index,
+  };
+}
+
+// Recovers funds from a mint that reached the reveal stage but couldn't
+// register. Builds the reveal-refund (spends the protocol collection box + the
+// user's reveal box) and the user signs it — the operator can't, since the
+// reveal box requires the user's key.
+export async function refundStuckMint(
+  name: string,
+  onProgress: (s: string) => void = () => {},
+): Promise<string> {
+  const wallet: any = (globalThis as any).__ergo ?? (typeof ergo !== "undefined" ? ergo : null);
+  if (!wallet) throw new Error("Connect your wallet first.");
+
+  onProgress("Fetching refund details…");
+  const infoRes = await fetch(`${BOT_URL}/refund-info/${name}`);
+  if (!infoRes.ok) throw new Error(`No refundable registration found for ~${name}.`);
+  const info = await infoRes.json();
+
+  onProgress("Fetching on-chain boxes…");
+  const collRes = await (await fetch(`${EXPLORER_API}/api/v1/boxes/unspent/byTokenId/${info.collectionSingletonTokenId}`)).json();
+  if (!collRes.items?.length) throw new Error("Collection box not found.");
+  const collBox = toFleetBox(collRes.items[0]);
+
+  const revealRaw = await (await fetch(`${EXPLORER_API}/api/v1/boxes/${info.revealBoxId}`)).json();
+  if (revealRaw.spentTransactionId) throw new Error("These funds were already recovered or registered.");
+  const revealBox = toFleetBox(revealRaw);
+
+  const collTokenAmount = BigInt(
+    collBox.assets.find((a: any) => a.tokenId === info.collectionTokenId).amount,
+  );
+
+  onProgress("Building refund transaction…");
+  // Recreate the collection box (+1 collection token returned) and pay the user.
+  const collectionOut = new OutputBuilder(BigInt(collBox.value), info.collectionContractAddress)
+    .addTokens([
+      { tokenId: info.collectionSingletonTokenId, amount: 1n },
+      { tokenId: info.collectionTokenId, amount: collTokenAmount + 1n },
+    ]);
+  const userOut = new OutputBuilder(
+    BigInt(info.revealValue) - BigInt(info.minerFee),
+    info.userAddress,
+  );
+
+  const height = await wallet.get_current_height();
+  // Collection MUST be input 0 and reveal input 1 (both contracts index them).
+  const tx = new TransactionBuilder(height)
+    .from([collBox, revealBox])
+    .to([collectionOut, userOut])
+    .payFee(BigInt(info.minerFee))
+    .sendChangeTo(info.userAddress)
+    .build()
+    .toEIP12Object();
+
+  onProgress("Awaiting wallet signature…");
+  const signed = await wallet.sign_tx(tx);
+  const txId = await wallet.submit_tx(signed);
+  onProgress(`Refund submitted (${txId.slice(0, 10)}…). Funds will return shortly.`);
+  return txId;
+}
+
 async function botPost(path: string, body: any): Promise<any> {
   const res = await fetch(`${BOT_URL}${path}`, {
     method: "POST",

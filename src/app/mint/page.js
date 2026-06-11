@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { resolveName, mintErgoName, connectWallet, getStatus, txLink } from "../lib/ergonames";
+import { resolveName, mintErgoName, connectWallet, getStatus, txLink, refundStuckMint } from "../lib/ergonames";
 
 const STATE_COPY = {
   queued: "Queued — waiting for the registration bot…",
@@ -96,6 +96,19 @@ export default function MintPage() {
     setBusy(false);
   };
 
+  const [recoverName, setRecoverName] = useState("");
+  const [recoverMsg, setRecoverMsg] = useState("");
+  const recover = async () => {
+    if (!address) { setRecoverMsg("Connect your wallet first."); return; }
+    setBusy(true); setRecoverMsg("");
+    try {
+      await refundStuckMint(clean(recoverName), setRecoverMsg);
+    } catch (e) {
+      setRecoverMsg(`⚠️ ${e.message ?? e}`);
+    }
+    setBusy(false);
+  };
+
   return (
     <main className="min-h-screen w-full bg-black text-white flex flex-col items-center">
       <header className="w-full flex items-center justify-between px-8 py-5 border-b border-zinc-800">
@@ -181,6 +194,25 @@ export default function MintPage() {
 
         {busy && status && <p className="opacity-80 text-center">{status}</p>}
         {!busy && status && <p className="text-red-400 text-center">{status}</p>}
+
+        <details className="w-full text-sm opacity-80">
+          <summary className="cursor-pointer">Recover a stuck registration</summary>
+          <div className="mt-3 flex flex-col gap-2">
+            <p className="opacity-70">
+              If a registration didn&apos;t complete, recover the funds back to your wallet.
+            </p>
+            <div className="flex gap-2">
+              <input
+                className="flex-1 px-3 py-2 rounded bg-zinc-900 border border-zinc-700 focus:outline-none focus:border-orange-500"
+                placeholder="name to recover" value={recoverName}
+                onChange={(e) => setRecoverName(e.target.value)}
+              />
+              <button className="px-4 py-2 rounded bg-zinc-700 hover:bg-zinc-600 font-semibold disabled:opacity-50"
+                onClick={recover} disabled={busy || !recoverName}>Recover</button>
+            </div>
+            {recoverMsg && <p className="text-zinc-300">{recoverMsg}</p>}
+          </div>
+        </details>
 
         {tracked && (
           <div className="w-full p-6 rounded bg-zinc-900 border border-zinc-700 flex flex-col gap-2 text-center">
