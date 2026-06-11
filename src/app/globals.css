@@ -2,11 +2,39 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Light — softened, warm off-white (not stark) */
+:root {
+  --page: 237 235 231;     /* warm off-white */
+  --surface: 252 251 249;  /* card */
+  --raised: 244 242 238;   /* inset rows */
+  --ink: 26 26 28;
+  --body: 74 74 80;
+  --muted: 110 124 138;
+  --line: 226 223 217;
+}
+/* Dark — Ergo navy */
+.dark {
+  --page: 9 11 18;
+  --surface: 20 24 38;
+  --raised: 27 32 49;
+  --ink: 237 238 242;
+  --body: 196 201 212;
+  --muted: 140 156 173;
+  --line: 36 42 60;
+}
+
 html, body {
-  background: #F2F2F2;
-  color: #040404;
+  background: rgb(var(--page));
+  color: rgb(var(--ink));
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 ::-webkit-scrollbar { width: 10px; }
-::-webkit-scrollbar-thumb { background: #d7d7d7; border-radius: 8px; }
+::-webkit-scrollbar-thumb { background: rgb(var(--line)); border-radius: 8px; }
+
+/* shimmer progress bar */
+.progress-shimmer {
+  background: linear-gradient(90deg, #FF5537 0%, #FF7E63 50%, #FF5537 100%);
+  background-size: 200% 100%;
+}

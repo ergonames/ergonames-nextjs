@@ -63,6 +63,38 @@ export async function getStatus(name: string): Promise<MintStatus> {
   return res.json();
 }
 
+export interface OwnedName { name: string; tokenId: string; }
+
+// Names currently held by the connected wallet: collect token ids from the
+// wallet's boxes, then ask the indexer which are ErgoNames.
+export async function getOwnedNames(): Promise<OwnedName[]> {
+  const wallet: any = (globalThis as any).__ergo ?? (typeof ergo !== "undefined" ? ergo : null);
+  if (!wallet) throw new Error("Wallet not connected.");
+  const utxos: any[] = await wallet.get_utxos();
+  const tokenIds = new Set<string>();
+  for (const u of utxos) for (const a of u.assets || []) tokenIds.add(a.tokenId);
+
+  const found: OwnedName[] = [];
+  await Promise.all(
+    [...tokenIds].map(async (id) => {
+      try {
+        const r = await (await fetch(`${API_URL}/token/${id}`)).json();
+        if (r && r.ergoname) found.push({ name: r.ergoname, tokenId: id });
+      } catch {}
+    }),
+  );
+  return found.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export interface StuckMint { name: string; revealValue: number; }
+
+export async function getStuckMints(address: string): Promise<StuckMint[]> {
+  try {
+    const r = await (await fetch(`${BOT_URL}/stuck/${address}`)).json();
+    return r.stuck || [];
+  } catch { return []; }
+}
+
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
     p,
