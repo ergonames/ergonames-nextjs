@@ -23,9 +23,12 @@ import {
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.ergonames.io";
 const BOT_URL = process.env.NEXT_PUBLIC_BOT_URL ?? "https://bot.ergonames.io";
 const BOT_TOKEN = process.env.NEXT_PUBLIC_BOT_TOKEN ?? "";
+const EXPLORER = "https://explorer.ergoplatform.com";
 
 declare const ergo: any;
 declare const ergoConnector: any;
+
+export const txLink = (txId: string) => `${EXPLORER}/transactions/${txId}`;
 
 export interface ResolveResult {
   isValid: boolean;
@@ -40,6 +43,26 @@ export async function resolveName(name: string): Promise<ResolveResult> {
   return res.json();
 }
 
+export interface MintStatus {
+  name: string;
+  state:
+    | "queued"
+    | "revealing"
+    | "registering"
+    | "registered"
+    | "refunded"
+    | "not_found";
+  registerTxId?: string;
+  ergoNameTokenId?: string;
+  refundTxId?: string;
+  revealTxId?: string;
+}
+
+export async function getStatus(name: string): Promise<MintStatus> {
+  const res = await fetch(`${BOT_URL}/status/${name}`);
+  return res.json();
+}
+
 async function botPost(path: string, body: any): Promise<any> {
   const res = await fetch(`${BOT_URL}${path}`, {
     method: "POST",
@@ -49,21 +72,49 @@ async function botPost(path: string, body: any): Promise<any> {
     },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`bot ${path} failed: ${await res.text()}`);
+  if (res.status === 429)
+    throw new Error("The registration service is busy. Please try again in a minute.");
+  if (!res.ok) throw new Error(`Registration service error: ${await res.text()}`);
   return res.json();
+}
+
+// Maps raw wallet/build errors to messages a user can act on.
+function friendlyError(e: any): string {
+  const msg = String(e?.message ?? e ?? "");
+  if (/not connected|connect/i.test(msg) && /wallet/i.test(msg))
+    return "Wallet not connected.";
+  if (/insufficient|not enough|cannot cover/i.test(msg))
+    return "Not enough ERG in your wallet to cover the registration.";
+  if (/reject|declined|cancell?ed|denied/i.test(msg))
+    return "You cancelled the transaction in your wallet.";
+  if (/busy|try again/i.test(msg)) return msg;
+  return msg || "Something went wrong. Please try again.";
 }
 
 export interface MintProgress {
   (stage: string): void;
 }
 
-// Drives a full mint. Requires Nautilus connected (window.ergo present).
+// Drives a full mint. Requires the Nautilus dApp connector.
 export async function mintErgoName(
   name: string,
   onProgress: MintProgress = () => {},
 ): Promise<{ commitTxId: string; proxyTxId: string }> {
+  if (typeof ergoConnector === "undefined" || !ergoConnector?.nautilus) {
+    throw new Error(
+      "Nautilus wallet not found. Install the Nautilus browser extension to register a name.",
+    );
+  }
   const connected = await ergoConnector.nautilus.connect();
   if (!connected) throw new Error("wallet not connected");
+
+  // Guard against a race: the name may have been taken between the check and
+  // now. The bot also refunds if a register can't win, but failing fast here
+  // avoids spending fees on a doomed mint.
+  const fresh = await resolveName(name);
+  if (fresh.isValid && fresh.isAvailable === false) {
+    throw new Error(`~${name} was just registered by someone else.`);
+  }
 
   const userAddress = await ergo.get_change_address();
   const utxos = await ergo.get_utxos();
@@ -133,12 +184,32 @@ export async function mintErgoName(
   const proxyEip12 = proxyTx.toEIP12Object();
 
   // ----- Sign + submit both -----
-  onProgress("Awaiting wallet signature…");
-  const commitSigned = await ergo.sign_tx(commitEip12);
-  const commitTxId = await ergo.submit_tx(commitSigned);
+  // The commit must not be left dangling: if the proxy step fails after the
+  // commit is broadcast, surface a clear, recoverable message (the commit box
+  // is refundable after the commit-age window).
+  onProgress("Awaiting wallet signature (1 of 2)…");
+  let commitTxId: string;
+  try {
+    const commitSigned = await ergo.sign_tx(commitEip12);
+    commitTxId = await ergo.submit_tx(commitSigned);
+  } catch (e) {
+    // Nothing broadcast yet — safe to fail with a friendly message.
+    throw new Error(friendlyError(e));
+  }
 
-  const proxySigned = await ergo.sign_tx(proxyEip12);
-  const proxyTxId = await ergo.submit_tx(proxySigned);
+  let proxyTxId: string;
+  try {
+    onProgress("Awaiting wallet signature (2 of 2)…");
+    const proxySigned = await ergo.sign_tx(proxyEip12);
+    proxyTxId = await ergo.submit_tx(proxySigned);
+  } catch (e) {
+    throw new Error(
+      "Your commit transaction was sent, but the second transaction was not " +
+        "completed, so registration cannot proceed. No name was minted; the " +
+        "committed funds become refundable automatically after a short wait. " +
+        `(commit ${commitTxId.slice(0, 10)}…)`,
+    );
+  }
 
   // ----- Hand the reveal payload to the bot -----
   onProgress("Queueing with the registration bot…");
