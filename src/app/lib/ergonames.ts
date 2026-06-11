@@ -194,10 +194,22 @@ export async function mintErgoName(
     .sendChangeTo(userAddress)
     .payFee(BigInt(p.minerFee))
     .build();
-  const commitEip12 = commitTx.toEIP12Object();
-  const commitBoxId = commitTx.outputs[0].boxId;
 
-  // ----- Reveal-box hash for the proxy R4 -----
+  // Sign + submit the commit FIRST. The reveal box embeds the commit box id,
+  // and a reliable box id is only available from the *signed* transaction
+  // (Fleet doesn't populate it on the unsigned tx).
+  onProgress("Awaiting wallet signature (1 of 2)…");
+  let commitSigned: any, commitTxId: string, commitBoxId: string;
+  try {
+    commitSigned = await wallet.sign_tx(commitTx.toEIP12Object());
+    commitTxId = await wallet.submit_tx(commitSigned);
+    commitBoxId = commitSigned.outputs[0].boxId;
+  } catch (e) {
+    // Nothing broadcast yet — safe to fail with a friendly message.
+    throw new Error(friendlyError(e));
+  }
+
+  // ----- Reveal-box hash for the proxy R4 (needs the real commit box id) -----
   onProgress("Computing reveal commitment…");
   const pending = {
     name,
@@ -212,8 +224,7 @@ export async function mintErgoName(
   };
   const { revealBoxHash } = await botPost("/reveal-hash", pending);
 
-  // ----- Reveal-proxy box -----
-  // Funded from the commit change box so the two chain cleanly.
+  // ----- Reveal-proxy box, funded from the commit's change box -----
   onProgress("Building reveal transaction…");
   const proxyOutput = new OutputBuilder(BigInt(p.proxyValue), p.revealProxyContractAddress)
     .setAdditionalRegisters({
@@ -223,36 +234,23 @@ export async function mintErgoName(
       R7: SGroupElement(userPk).toHex(),
     });
 
-  const changeBox = commitTx.outputs.find(
-    (o: any) => o.ergoTree === ErgoAddress.fromBase58(userAddress).ergoTree,
-  );
+  const userErgoTree = ErgoAddress.fromBase58(userAddress).ergoTree;
+  const changeBox = commitSigned.outputs.find((o: any) => o.ergoTree === userErgoTree);
+  if (!changeBox) throw new Error("Could not find a change box to fund the reveal transaction.");
+
   const proxyTx = new TransactionBuilder(p.creationHeight)
-    .from([changeBox, ...utxos.filter((u: any) => u.boxId !== commitTx.inputs[0].boxId)])
+    .from([changeBox])
     .to(proxyOutput)
     .sendChangeTo(userAddress)
     .payFee(BigInt(p.minerFee))
     .build();
-  const proxyEip12 = proxyTx.toEIP12Object();
 
-  // ----- Sign + submit both -----
-  // The commit must not be left dangling: if the proxy step fails after the
-  // commit is broadcast, surface a clear, recoverable message (the commit box
-  // is refundable after the commit-age window).
-  onProgress("Awaiting wallet signature (1 of 2)…");
-  let commitTxId: string;
-  try {
-    const commitSigned = await wallet.sign_tx(commitEip12);
-    commitTxId = await wallet.submit_tx(commitSigned);
-  } catch (e) {
-    // Nothing broadcast yet — safe to fail with a friendly message.
-    throw new Error(friendlyError(e));
-  }
-
-  let proxyTxId: string;
+  let proxyTxId: string, proxyBoxId: string;
   try {
     onProgress("Awaiting wallet signature (2 of 2)…");
-    const proxySigned = await wallet.sign_tx(proxyEip12);
+    const proxySigned = await wallet.sign_tx(proxyTx.toEIP12Object());
     proxyTxId = await wallet.submit_tx(proxySigned);
+    proxyBoxId = proxySigned.outputs[0].boxId;
   } catch (e) {
     throw new Error(
       "Your commit transaction was sent, but the second transaction was not " +
@@ -264,12 +262,7 @@ export async function mintErgoName(
 
   // ----- Hand the reveal payload to the bot -----
   onProgress("Queueing with the registration bot…");
-  await botPost("/submit", {
-    ...pending,
-    commitTxId,
-    proxyBoxId: proxyTx.outputs[0].boxId,
-    proxyTxId,
-  });
+  await botPost("/submit", { ...pending, commitTxId, proxyBoxId, proxyTxId });
 
   onProgress("Submitted! The bot will complete your registration shortly.");
   return { commitTxId, proxyTxId };
