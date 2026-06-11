@@ -41,12 +41,15 @@ export default function MintPage() {
   const clean = (n) => n.trim().replace(/^~/, "");
   const short = (a) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
+  const [connectStep, setConnectStep] = useState("");
   const connect = async () => {
-    setWalletErr(""); setBusy(true);
+    setWalletErr(""); setConnectStep(""); setBusy(true);
     try {
-      setAddress(await connectWallet());
+      setAddress(await connectWallet(setConnectStep));
+      setConnectStep("");
     } catch (e) {
       setWalletErr(e.message ?? String(e));
+      setConnectStep("");
     }
     setBusy(false);
   };
@@ -114,6 +117,11 @@ export default function MintPage() {
         <div className="w-full max-w-xl mt-4 p-3 rounded bg-red-500/10 border border-red-500/50 text-red-300 text-sm text-center">
           Nautilus wallet was not detected in this browser. Install the{" "}
           <a className="underline" href="https://chromewebstore.google.com/detail/nautilus-wallet/gjlmehlldlphhljhpnlddaodbjjcchai" target="_blank" rel="noreferrer">Nautilus extension</a>, then reload this page.
+        </div>
+      )}
+      {connectStep && (
+        <div className="w-full max-w-xl mt-4 p-3 rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-sm text-center">
+          {connectStep}
         </div>
       )}
       {walletErr && (

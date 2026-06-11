@@ -73,8 +73,10 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
 }
 
 // Connects the Nautilus dApp connector and returns the wallet's change address.
-// Timed out so a non-responsive extension can't hang the UI silently.
-export async function connectWallet(): Promise<string> {
+// onStep reports progress to the UI so a hang is visible (which call stalled).
+export async function connectWallet(onStep: (s: string) => void = () => {}): Promise<string> {
+  const log = (s: string) => { console.log("[ergonames]", s); onStep(s); };
+
   if (typeof window === "undefined") throw new Error("No browser window.");
   if (typeof ergoConnector === "undefined" || !ergoConnector?.nautilus) {
     throw new Error(
@@ -84,27 +86,24 @@ export async function connectWallet(): Promise<string> {
   const nautilus = ergoConnector.nautilus;
 
   // If the site is already authorized, calling connect() again can hang
-  // forever (Nautilus won't re-prompt). Check first and skip straight to the
-  // context.
+  // forever (Nautilus won't re-prompt). Check first and skip straight to it.
+  log("step 1/3: checking existing connection…");
   let already = false;
   try {
     if (typeof nautilus.isConnected === "function") {
       already = await withTimeout(nautilus.isConnected(), 5000, "Wallet check");
     }
-  } catch {
-    already = false;
-  }
-  console.log("[ergonames] already connected?", already);
+  } catch { already = false; }
+  log(`already connected? ${already}`);
 
   if (!already) {
-    console.log("[ergonames] requesting Nautilus connection…");
-    const granted = await withTimeout(nautilus.connect(), 60000, "Wallet connection");
-    console.log("[ergonames] connect() returned:", granted);
+    log("step 2/3: requesting connection — approve in Nautilus (or click the Nautilus toolbar icon)…");
+    const granted = await withTimeout(nautilus.connect(), 90000, "Wallet connection");
+    log(`connect() returned: ${granted}`);
     if (!granted) throw new Error("Connection request was declined in Nautilus.");
   }
 
-  // Obtain the wallet context: the global `ergo` (createErgoObject default) or
-  // an explicit getContext() fallback.
+  log("step 3/3: reading wallet address…");
   let ctx: any = typeof ergo !== "undefined" ? ergo : null;
   if (!ctx && typeof nautilus.getContext === "function") {
     ctx = await withTimeout(nautilus.getContext(), 10000, "Wallet context");
@@ -113,7 +112,7 @@ export async function connectWallet(): Promise<string> {
   (globalThis as any).__ergo = ctx;
 
   const address = (await withTimeout(ctx.get_change_address(), 30000, "Reading wallet address")) as string;
-  console.log("[ergonames] connected:", address);
+  log(`connected: ${address}`);
   return address;
 }
 
