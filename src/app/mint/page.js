@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef } from "react";
-import { resolveName, mintErgoName, getStatus, txLink } from "../lib/ergonames";
+import { resolveName, mintErgoName, connectWallet, getStatus, txLink } from "../lib/ergonames";
 
 const STATE_COPY = {
   queued: "Queued — waiting for the registration bot…",
@@ -15,11 +15,24 @@ export default function MintPage() {
   const [name, setName] = useState("");
   const [result, setResult] = useState(null);
   const [status, setStatus] = useState("");
-  const [tracked, setTracked] = useState(null); // {state, ...txids}
+  const [tracked, setTracked] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [address, setAddress] = useState(null);
+  const [walletErr, setWalletErr] = useState("");
   const pollRef = useRef(null);
 
   const clean = (n) => n.trim().replace(/^~/, "");
+  const short = (a) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+
+  const connect = async () => {
+    setWalletErr(""); setBusy(true);
+    try {
+      setAddress(await connectWallet());
+    } catch (e) {
+      setWalletErr(e.message ?? String(e));
+    }
+    setBusy(false);
+  };
 
   const check = async () => {
     setResult(null); setStatus(""); setTracked(null);
@@ -28,7 +41,6 @@ export default function MintPage() {
       setResult({ error: "Names are 1-25 chars: letters, numbers, underscore." });
       return;
     }
-    // Testing phase: only 8+ character names can be registered.
     if (c.length < 8) {
       setResult({ error: "During the testing phase, only names with 8 or more characters can be registered." });
       return;
@@ -45,9 +57,7 @@ export default function MintPage() {
       try {
         const s = await getStatus(c);
         setTracked(s);
-        if (s.state === "registered" || s.state === "refunded") {
-          clearInterval(pollRef.current);
-        }
+        if (s.state === "registered" || s.state === "refunded") clearInterval(pollRef.current);
       } catch {}
     }, 15000);
   };
@@ -56,7 +66,7 @@ export default function MintPage() {
     const c = clean(name);
     setBusy(true); setStatus(""); setTracked(null);
     try {
-      await mintErgoName(c, setStatus);
+      await mintErgoName(c, address, setStatus);
       setStatus("");
       setTracked({ state: "not_found" });
       startTracking(c);
@@ -67,82 +77,98 @@ export default function MintPage() {
   };
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center gap-6 p-8 bg-black text-white">
-      <div className="flex items-center gap-3">
-        <h1 className="text-4xl font-bold"><span className="text-orange-500">~</span>ErgoNames</h1>
-        <span className="px-2 py-0.5 rounded bg-orange-500/20 border border-orange-500 text-orange-400 text-xs font-bold tracking-wider self-start mt-1">BETA</span>
-      </div>
-      <p className="opacity-70">Register your name on Ergo.</p>
+    <main className="min-h-screen w-full bg-black text-white flex flex-col items-center">
+      <header className="w-full flex items-center justify-between px-8 py-5 border-b border-zinc-800">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl font-bold"><span className="text-orange-500">~</span>ErgoNames</span>
+          <span className="px-2 py-0.5 rounded bg-orange-500/20 border border-orange-500 text-orange-400 text-xs font-bold tracking-wider">BETA</span>
+        </div>
+        {address ? (
+          <span className="text-sm px-3 py-1.5 rounded bg-zinc-900 border border-zinc-700">{short(address)}</span>
+        ) : (
+          <button className="px-4 py-1.5 rounded bg-orange-500 hover:bg-orange-600 font-semibold disabled:opacity-50"
+            onClick={connect} disabled={busy}>
+            {busy ? "Connecting…" : "Connect Wallet"}
+          </button>
+        )}
+      </header>
 
-      <div className="w-full max-w-md p-4 rounded bg-yellow-500/10 border border-yellow-500/50 text-yellow-200 text-sm">
-        <p className="font-semibold mb-1">⚠️ Testing phase — names are not permanent</p>
-        <p className="opacity-90">
-          ErgoNames is in beta. Names registered now are for testing and
-          <span className="font-semibold"> may be purged before the public launch</span>.
-          Do not rely on any name minted during this phase. Only names of 8+
-          characters can be registered for now.
-        </p>
-      </div>
-
-      <div className="flex gap-2 w-full max-w-md">
-        <span className="self-center text-orange-500 text-2xl font-bold">~</span>
-        <input
-          className="flex-1 px-4 py-2 rounded bg-zinc-900 border border-zinc-700 focus:outline-none focus:border-orange-500"
-          placeholder="yourname" value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && check()}
-        />
-        <button className="px-4 py-2 rounded bg-orange-500 hover:bg-orange-600 font-semibold disabled:opacity-50"
-          onClick={check} disabled={busy}>Check</button>
-      </div>
-
-      {result?.error && <p className="text-red-400">{result.error}</p>}
-
-      {result && !result.error && result.isValid && !tracked && (
-        <div className="w-full max-w-md p-6 rounded bg-zinc-900 border border-zinc-700 flex flex-col gap-3">
-          {result.isAvailable ? (
-            <>
-              <p className="text-green-400 text-lg">~{clean(name)} is available</p>
-              <p className="opacity-70">Price: ${result.mintCost} in ERG</p>
-              <button className="px-4 py-2 rounded bg-orange-500 hover:bg-orange-600 font-semibold disabled:opacity-50"
-                onClick={mint} disabled={busy}>
-                {busy ? "Working…" : "Register with Nautilus"}
-              </button>
-            </>
-          ) : (
-            <>
-              <p className="text-zinc-300 text-lg">~{result.ergoname} is taken</p>
-              {result.owner && <p className="opacity-70 break-all text-sm">Owner: {result.owner}</p>}
-            </>
-          )}
+      {walletErr && (
+        <div className="w-full max-w-xl mt-4 p-3 rounded bg-red-500/10 border border-red-500/50 text-red-300 text-sm text-center">
+          {walletErr}
         </div>
       )}
 
-      {busy && status && <p className="opacity-80 max-w-md text-center">{status}</p>}
-      {!busy && status && <p className="text-red-400 max-w-md text-center">{status}</p>}
+      <section className="flex flex-col items-center gap-6 px-8 py-16 w-full max-w-xl">
+        <h1 className="text-5xl font-bold text-center">Claim your <span className="text-orange-500">~</span>name on Ergo</h1>
 
-      {tracked && (
-        <div className="w-full max-w-md p-6 rounded bg-zinc-900 border border-zinc-700 flex flex-col gap-2 text-center">
-          <p className={tracked.state === "registered" ? "text-green-400 text-lg"
-            : tracked.state === "refunded" ? "text-yellow-400 text-lg" : "text-zinc-200"}>
-            {STATE_COPY[tracked.state] ?? tracked.state}
+        <div className="w-full p-4 rounded bg-yellow-500/10 border border-yellow-500/50 text-yellow-200 text-sm">
+          <p className="font-semibold mb-1">⚠️ Testing phase — names are not permanent</p>
+          <p className="opacity-90">
+            ErgoNames is in beta. Names registered now are for testing and
+            <span className="font-semibold"> may be purged before the public launch</span>.
+            Do not rely on any name minted during this phase. Only names of 8+ characters can be registered for now.
           </p>
-          {tracked.state === "registered" && (
-            <p className="opacity-70 text-sm">~{clean(name)} is now yours.</p>
-          )}
-          {tracked.registerTxId && (
-            <a className="text-orange-400 underline text-sm" target="_blank" rel="noreferrer"
-              href={txLink(tracked.registerTxId)}>view registration tx</a>
-          )}
-          {tracked.refundTxId && (
-            <a className="text-orange-400 underline text-sm" target="_blank" rel="noreferrer"
-              href={txLink(tracked.refundTxId)}>view refund tx</a>
-          )}
-          {!["registered", "refunded"].includes(tracked.state) && (
-            <p className="opacity-50 text-xs">You can close this page — registration continues on-chain.</p>
-          )}
         </div>
-      )}
+
+        <div className="flex gap-2 w-full">
+          <span className="self-center text-orange-500 text-2xl font-bold">~</span>
+          <input
+            className="flex-1 px-4 py-3 rounded bg-zinc-900 border border-zinc-700 focus:outline-none focus:border-orange-500 text-lg"
+            placeholder="yourname" value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && check()}
+          />
+          <button className="px-6 py-3 rounded bg-orange-500 hover:bg-orange-600 font-semibold disabled:opacity-50"
+            onClick={check} disabled={busy}>Check</button>
+        </div>
+
+        {result?.error && <p className="text-red-400 text-center">{result.error}</p>}
+
+        {result && !result.error && result.isValid && !tracked && (
+          <div className="w-full p-6 rounded bg-zinc-900 border border-zinc-700 flex flex-col gap-3">
+            {result.isAvailable ? (
+              <>
+                <p className="text-green-400 text-xl">~{clean(name)} is available</p>
+                {!address ? (
+                  <p className="opacity-70">Connect your wallet to register.</p>
+                ) : (
+                  <button className="px-4 py-3 rounded bg-orange-500 hover:bg-orange-600 font-semibold disabled:opacity-50"
+                    onClick={mint} disabled={busy}>
+                    {busy ? "Working…" : `Register ~${clean(name)}`}
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-zinc-300 text-xl">~{result.ergoname} is taken</p>
+                {result.owner && <p className="opacity-70 break-all text-sm">Owner: {result.owner}</p>}
+              </>
+            )}
+          </div>
+        )}
+
+        {busy && status && <p className="opacity-80 text-center">{status}</p>}
+        {!busy && status && <p className="text-red-400 text-center">{status}</p>}
+
+        {tracked && (
+          <div className="w-full p-6 rounded bg-zinc-900 border border-zinc-700 flex flex-col gap-2 text-center">
+            <p className={tracked.state === "registered" ? "text-green-400 text-lg"
+              : tracked.state === "refunded" ? "text-yellow-400 text-lg" : "text-zinc-200"}>
+              {STATE_COPY[tracked.state] ?? tracked.state}
+            </p>
+            {tracked.registerTxId && (
+              <a className="text-orange-400 underline text-sm" target="_blank" rel="noreferrer" href={txLink(tracked.registerTxId)}>view registration tx</a>
+            )}
+            {tracked.refundTxId && (
+              <a className="text-orange-400 underline text-sm" target="_blank" rel="noreferrer" href={txLink(tracked.refundTxId)}>view refund tx</a>
+            )}
+            {!["registered", "refunded"].includes(tracked.state) && (
+              <p className="opacity-50 text-xs">You can close this page — registration continues on-chain.</p>
+            )}
+          </div>
+        )}
+      </section>
     </main>
   );
 }

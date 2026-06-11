@@ -63,6 +63,40 @@ export async function getStatus(name: string): Promise<MintStatus> {
   return res.json();
 }
 
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out — is Nautilus installed and unlocked?`)), ms),
+    ),
+  ]);
+}
+
+// Connects the Nautilus dApp connector and returns the wallet's change address.
+// Timed out so a non-responsive extension can't hang the UI silently.
+export async function connectWallet(): Promise<string> {
+  if (typeof window === "undefined") throw new Error("No browser window.");
+  if (typeof ergoConnector === "undefined" || !ergoConnector?.nautilus) {
+    throw new Error(
+      "Nautilus wallet not found. Install the Nautilus extension in Chrome or Firefox, then reload this page.",
+    );
+  }
+  console.log("[ergonames] requesting Nautilus connection…");
+  const granted = await withTimeout(
+    ergoConnector.nautilus.connect({ createErgoObject: true }),
+    60000,
+    "Wallet connection",
+  );
+  console.log("[ergonames] connect() returned:", granted);
+  if (!granted) throw new Error("Connection request was declined in Nautilus.");
+  if (typeof ergo === "undefined") {
+    throw new Error("Wallet connected but context not injected. Reload the page and try again.");
+  }
+  const address = (await withTimeout(ergo.get_change_address(), 30000, "Reading wallet address")) as string;
+  console.log("[ergonames] connected:", address);
+  return address;
+}
+
 async function botPost(path: string, body: any): Promise<any> {
   const res = await fetch(`${BOT_URL}${path}`, {
     method: "POST",
@@ -95,18 +129,16 @@ export interface MintProgress {
   (stage: string): void;
 }
 
-// Drives a full mint. Requires the Nautilus dApp connector.
+// Drives a full mint. The wallet must already be connected (call
+// connectWallet first); userAddress is passed in from that step.
 export async function mintErgoName(
   name: string,
+  userAddress: string,
   onProgress: MintProgress = () => {},
 ): Promise<{ commitTxId: string; proxyTxId: string }> {
-  if (typeof ergoConnector === "undefined" || !ergoConnector?.nautilus) {
-    throw new Error(
-      "Nautilus wallet not found. Install the Nautilus browser extension to register a name.",
-    );
+  if (typeof ergo === "undefined") {
+    throw new Error("Wallet not connected. Click Connect Wallet first.");
   }
-  const connected = await ergoConnector.nautilus.connect();
-  if (!connected) throw new Error("wallet not connected");
 
   // Guard against a race: the name may have been taken between the check and
   // now. The bot also refunds if a register can't win, but failing fast here
@@ -116,8 +148,7 @@ export async function mintErgoName(
     throw new Error(`~${name} was just registered by someone else.`);
   }
 
-  const userAddress = await ergo.get_change_address();
-  const utxos = await ergo.get_utxos();
+  const utxos = (await withTimeout(ergo.get_utxos(), 30000, "Reading wallet boxes")) as any[];
 
   onProgress("Fetching price and parameters…");
   const p = await botPost("/prepare", { name, userAddress });
