@@ -97,7 +97,7 @@ export async function getStuckMints(address: string): Promise<StuckMint[]> {
 
 export interface Quote {
   name: string; priceCents: number; nanoErgPerUsd: number;
-  priceNanoErg: number; networkFeeNanoErg: number;
+  priceNanoErg: number; bufferNanoErg: number; networkFeeNanoErg: number;
   serviceFeeNanoErg: number; depositNanoErg: number; totalNanoErg: number;
 }
 
@@ -379,10 +379,20 @@ export async function mintErgoName(
 
   const userErgoTree = ErgoAddress.fromBase58(userAddress).ergoTree;
   const changeBox = commitSigned.outputs.find((o: any) => o.ergoTree === userErgoTree);
-  if (!changeBox) throw new Error("Could not find a change box to fund the reveal transaction.");
+
+  // Fund the proxy from the commit's change box plus whatever wallet boxes the
+  // commit didn't spend. Funding from the change box alone fails with
+  // "insufficient inputs" whenever the commit happened to select a small box,
+  // even though the wallet holds plenty across other boxes.
+  const spentByCommit = new Set(commitSigned.inputs.map((i: any) => i.boxId));
+  const remainingUtxos = utxos.filter((u: any) => !spentByCommit.has(u.boxId));
+  const proxyFunding = changeBox ? [changeBox, ...remainingUtxos] : remainingUtxos;
+  if (proxyFunding.length === 0) {
+    throw new Error("No wallet boxes available to fund the reveal transaction.");
+  }
 
   const proxyTx = new TransactionBuilder(p.creationHeight)
-    .from([changeBox])
+    .from(proxyFunding)
     .to(proxyOutput)
     .sendChangeTo(userAddress)
     .payFee(BigInt(p.minerFee))

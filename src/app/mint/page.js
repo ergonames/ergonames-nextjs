@@ -32,6 +32,7 @@ function PriceBreakdown({ q }) {
     <div className="rounded-2xl bg-raised border border-line p-4">
       <Row label="Name price" hint="The cost of the name itself" nano={q.priceNanoErg} />
       <div className="border-t border-line" />
+      {q.bufferNanoErg > 0 && <Row label="Price buffer" hint="Covers ERG/USD moves while registering; refunded if the mint fails" nano={q.bufferNanoErg} />}
       <Row label="Network fee" hint="Ergo blockchain miner fees (4 transactions)" nano={q.networkFeeNanoErg} />
       <Row label="Service fee" hint="Runs the automated registration for you" nano={q.serviceFeeNanoErg} />
       <Row label="Deposit" hint="Stays in your name's NFT box — remains yours" nano={q.depositNanoErg} />
