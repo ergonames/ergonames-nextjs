@@ -45,6 +45,7 @@ function MintedDetail({ name }) {
           {s?.tokenId && <Stat k="Token" v={`${s.tokenId.slice(0, 10)}…`} mono href={`https://ergexplorer.com/token/${s.tokenId}`} />}
           {s?.mintTransactionId && <Stat k="Mint tx" v="view ↗" href={txLink(s.mintTransactionId)} />}
           {s?.owner && <Stat k="Owner" v={`${s.owner.slice(0, 8)}…${s.owner.slice(-6)}`} mono />}
+          <Stat k="Public page" v={`ergonames.io/name/${name} ↗`} href={`/name/${name}`} />
         </div>
       </div>
     </div>

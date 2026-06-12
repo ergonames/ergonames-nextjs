@@ -242,6 +242,7 @@ export default function MintPage() {
               <div className="mt-3 flex flex-col items-center gap-1">
                 {tracked.registerTxId && <a className="text-ergo-500 underline text-sm" target="_blank" rel="noreferrer" href={txLink(tracked.registerTxId)}>View on explorer ↗</a>}
                 {tracked.refundTxId && <a className="text-ergo-500 underline text-sm" target="_blank" rel="noreferrer" href={txLink(tracked.refundTxId)}>View refund tx ↗</a>}
+                {tracked.state === "registered" && <Link href={`/name/${c}`} className="text-ergo-500 underline text-sm">View & share your name page →</Link>}
                 {tracked.state === "registered" && <Link href="/records" className="text-muted text-sm hover:text-ink transition">See it in My Names →</Link>}
                 {!["registered", "refunded"].includes(tracked.state) && <span className="text-muted text-xs">You can close this page — it continues on-chain.</span>}
               </div>
