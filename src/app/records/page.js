@@ -266,11 +266,37 @@ export default function RecordsPage() {
                 [your payout, miner fee] per refund. */}
             {!sel && dust.length > 0 && (
               <div className="mt-8 bg-surface border border-line rounded-3xl shadow-soft p-6 animate-fade-up">
-                <h3 className="text-ink font-semibold">Recoverable dust</h3>
-                <p className="text-muted text-sm mt-1.5">
-                  Leftover deposits from registration attempts that never completed. Each refund is a small
-                  transaction only your wallet can sign.
-                </p>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-ink font-semibold">Recoverable dust</h3>
+                    <p className="text-muted text-sm mt-1.5">
+                      Leftover deposits from registration attempts that never completed — they become refundable
+                      ~24 hours after the attempt. The contract requires one signed transaction per box, so
+                      &quot;Recover all&quot; will ask your wallet to approve each in sequence.
+                    </p>
+                  </div>
+                  {dust.length > 1 && (
+                    <button
+                      disabled={dustBusy !== ""}
+                      onClick={async () => {
+                        setDustMsg("");
+                        let ok = 0, fail = 0;
+                        for (const d of [...dust]) {
+                          setDustBusy(d.boxId);
+                          try {
+                            await refundCommit(d.boxId, address);
+                            setDust((ds) => ds.filter((x) => x.boxId !== d.boxId));
+                            ok++;
+                          } catch { fail++; }
+                        }
+                        setDustBusy("");
+                        setDustMsg(fail === 0 ? `All ${ok} refunds sent 🎉` : `${ok} sent, ${fail} failed or declined — the rest stay listed.`);
+                      }}
+                      className="shrink-0 px-4 py-2 rounded-full bg-ergo-500 hover:bg-ergo-600 text-white text-sm font-semibold transition disabled:opacity-50">
+                      {dustBusy ? "Signing…" : `Recover all (${(dust.reduce((s, d) => s + d.refundNanoErg, 0) / 1e9).toFixed(4)} ERG)`}
+                    </button>
+                  )}
+                </div>
                 <div className="mt-4 flex flex-col gap-2.5">
                   {dust.map((d) => (
                     <div key={d.boxId} className="flex items-center justify-between gap-3 bg-raised rounded-2xl px-4 py-3">
