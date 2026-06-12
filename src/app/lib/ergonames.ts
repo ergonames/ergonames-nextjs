@@ -91,6 +91,51 @@ export async function getOwnedNames(): Promise<OwnedName[]> {
   return found.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// ---- Commit dust recovery -------------------------------------------------
+// Orphaned commit boxes (failed/duplicate attempts) hold ~0.002 ERG each.
+// The bot lists which ones this wallet may refund (age-gated, not referenced
+// by any pending mint); the refund tx itself is built here and signed by the
+// user — the contract requires exactly [user payout, miner fee] outputs.
+
+export interface RefundableCommit {
+  boxId: string;
+  value: number;
+  minerFee: number;
+  refundNanoErg: number;
+  ageBlocks: number;
+}
+
+export async function getRefundableCommits(address: string): Promise<RefundableCommit[]> {
+  try {
+    const r = await (await fetch(`${BOT_URL}/refundable-commits/${address}`)).json();
+    return r.commits ?? [];
+  } catch { return []; }
+}
+
+export async function refundCommit(boxId: string, userAddress: string): Promise<string> {
+  const wallet: any = (globalThis as any).__ergo ?? (typeof ergo !== "undefined" ? ergo : null);
+  if (!wallet) throw new Error("Connect your wallet first.");
+
+  const raw = await (await fetch(`${EXPLORER_API}/api/v1/boxes/${boxId}`)).json();
+  if (raw.spentTransactionId) throw new Error("This box was already recovered.");
+  const commitBox = toFleetBox(raw);
+  const minerFee = BigInt(raw.additionalRegisters.R6.renderedValue);
+
+  // Exactly two outputs (user payout, miner fee) — the contract checks the
+  // count and that the payout equals box value minus the R6 miner fee.
+  const userOut = new OutputBuilder(BigInt(raw.value) - minerFee, userAddress);
+  const height = await wallet.get_current_height();
+  const tx = new TransactionBuilder(height)
+    .from([commitBox])
+    .to([userOut])
+    .payFee(minerFee)
+    .build()
+    .toEIP12Object();
+
+  const signed = await wallet.sign_tx(tx);
+  return wallet.submit_tx(signed);
+}
+
 export interface StuckMint { name: string; revealValue: number; }
 
 export async function getStuckMints(address: string): Promise<StuckMint[]> {

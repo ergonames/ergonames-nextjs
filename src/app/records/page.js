@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { connectWallet, getOwnedNames, getMints, refundStuckMint, getNameStats, getStatus, txLink, getOnChainArt } from "../lib/ergonames";
+import { connectWallet, getOwnedNames, getMints, refundStuckMint, getNameStats, getStatus, txLink, getOnChainArt, getRefundableCommits, refundCommit } from "../lib/ergonames";
 import HexLogo from "../components/HexLogo";
 import HexArt from "../components/HexArt";
 import NftCard from "../components/NftCard";
@@ -145,19 +145,25 @@ export default function RecordsPage() {
   const [owned, setOwned] = useState(null);
   const [minting, setMinting] = useState([]);
   const [stuck, setStuck] = useState([]);
+  const [dust, setDust] = useState([]);
+  const [dustBusy, setDustBusy] = useState(""); // boxId being refunded
+  const [dustMsg, setDustMsg] = useState("");
   const [sel, setSel] = useState(null); // { name, kind }
   const short = (a) => `${a.slice(0, 5)}…${a.slice(-4)}`;
 
   const load = useCallback(async (addr) => {
     setBusy(true); setErr("");
     try {
-      const [names, mints] = await Promise.all([getOwnedNames(), getMints(addr)]);
+      const [names, mints, dustBoxes] = await Promise.all([
+        getOwnedNames(), getMints(addr), getRefundableCommits(addr),
+      ]);
       const ownedSet = new Set(names.map((n) => n.name));
       setOwned(names);
       setMinting(mints.minting.filter((n) => !ownedSet.has(n)));
       // Never hide stuck entries behind owned names: a duplicate-mint can leave
       // a recoverable reveal box for a name the wallet also owns.
       setStuck(mints.stuck);
+      setDust(dustBoxes);
     } catch (e) { setErr(e.message ?? String(e)); }
     setBusy(false);
   }, []);
@@ -253,6 +259,43 @@ export default function RecordsPage() {
                     <Link href="/mint" className="inline-block mt-4 px-6 py-3 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition">Register your first name</Link>
                   </div>
                 )}
+              </div>
+            )}
+            {/* Dust recovery: orphaned commit boxes from failed/duplicate
+                attempts. One signed tx per box — the contract demands exactly
+                [your payout, miner fee] per refund. */}
+            {!sel && dust.length > 0 && (
+              <div className="mt-8 bg-surface border border-line rounded-3xl shadow-soft p-6 animate-fade-up">
+                <h3 className="text-ink font-semibold">Recoverable dust</h3>
+                <p className="text-muted text-sm mt-1.5">
+                  Leftover deposits from registration attempts that never completed. Each refund is a small
+                  transaction only your wallet can sign.
+                </p>
+                <div className="mt-4 flex flex-col gap-2.5">
+                  {dust.map((d) => (
+                    <div key={d.boxId} className="flex items-center justify-between gap-3 bg-raised rounded-2xl px-4 py-3">
+                      <div className="min-w-0">
+                        <div className="text-ink text-sm font-mono truncate">{d.boxId.slice(0, 10)}…{d.boxId.slice(-6)}</div>
+                        <div className="text-muted text-xs">recovers {(d.refundNanoErg / 1e9).toFixed(4)} ERG · {d.ageBlocks.toLocaleString()} blocks old</div>
+                      </div>
+                      <button
+                        disabled={dustBusy !== ""}
+                        onClick={async () => {
+                          setDustBusy(d.boxId); setDustMsg("");
+                          try {
+                            const tx = await refundCommit(d.boxId, address);
+                            setDust((ds) => ds.filter((x) => x.boxId !== d.boxId));
+                            setDustMsg(`Refund sent — tx ${tx.slice(0, 12)}…`);
+                          } catch (e) { setDustMsg(e.message ?? String(e)); }
+                          setDustBusy("");
+                        }}
+                        className="shrink-0 px-4 py-2 rounded-full bg-ergo-500 hover:bg-ergo-600 text-white text-sm font-semibold transition disabled:opacity-50">
+                        {dustBusy === d.boxId ? "Signing…" : "Recover"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                {dustMsg && <p className={`mt-3 text-sm ${dustMsg.startsWith("Refund sent") ? "text-mint" : "text-red-500"}`}>{dustMsg}</p>}
               </div>
             )}
           </>
