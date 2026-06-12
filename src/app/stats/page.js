@@ -38,7 +38,7 @@ function ActivityChart({ perDay }) {
     <div>
       <div className="flex items-end gap-[3px] h-36">
         {series.map((s) => (
-          <div key={s.start} className="flex-1 flex flex-col justify-end group relative">
+          <div key={s.start} className="flex-1 h-full flex flex-col justify-end group relative">
             <div
               className={`rounded-t ${s.count > 0 ? "bg-ergo-500" : "bg-raised"}`}
               style={{ height: `${Math.max(s.count > 0 ? 8 : 3, (s.count / max) * 100)}%` }}
