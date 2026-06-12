@@ -40,6 +40,9 @@ export interface ResolveResult {
 
 export async function resolveName(name: string): Promise<ResolveResult> {
   const res = await fetch(`${API_URL}/resolve/${name}`);
+  // An error body ({"error":...}) has no isAvailable and would render as
+  // "Taken" — surface it to the caller's catch instead.
+  if (!res.ok) throw new Error(`resolve failed (${res.status})`);
   return res.json();
 }
 
@@ -60,6 +63,7 @@ export interface MintStatus {
 
 export async function getStatus(name: string): Promise<MintStatus> {
   const res = await fetch(`${BOT_URL}/status/${name}`);
+  if (!res.ok) throw new Error(`status failed (${res.status})`);
   return res.json();
 }
 
@@ -101,10 +105,16 @@ export interface Quote {
   serviceFeeNanoErg: number; depositNanoErg: number; totalNanoErg: number;
 }
 
-// Live, itemised cost breakdown for a name.
+// Live, itemised cost breakdown for a name. Returns null on any failure —
+// including rate-limit/error JSON bodies, which would otherwise reach the
+// price card as an object with no numeric fields and render as NaN.
 export async function getQuote(name: string): Promise<Quote | null> {
-  try { return await (await fetch(`${BOT_URL}/quote/${name}`)).json(); }
-  catch { return null; }
+  try {
+    const res = await fetch(`${BOT_URL}/quote/${name}`);
+    if (!res.ok) return null;
+    const q = await res.json();
+    return typeof q?.totalNanoErg === "number" ? q : null;
+  } catch { return null; }
 }
 
 export interface MintsForAddress { minting: string[]; stuck: StuckMint[]; }
