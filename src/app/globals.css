@@ -38,3 +38,42 @@ html, body {
   background: linear-gradient(90deg, #FF5638 0%, #FF7E64 50%, #FF5638 100%);
   background-size: 200% 100%;
 }
+
+/* ---- landing jazz (motion vocabulary; respects prefers-reduced-motion) ---- */
+@keyframes aurora {
+  0% { transform: translate(-8%, -4%) scale(1) rotate(0deg); }
+  50% { transform: translate(8%, 5%) scale(1.15) rotate(10deg); }
+  100% { transform: translate(-8%, -4%) scale(1) rotate(0deg); }
+}
+@keyframes floaty-slow {
+  0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); }
+  50% { transform: translateY(-9px) rotate(var(--rot, 0deg)); }
+}
+@keyframes caret-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes typing { from { width: 0; } to { width: calc(var(--ch) * 1ch); } }
+@keyframes term-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes shine { from { transform: translateX(-160%) skewX(-20deg); } to { transform: translateX(260%) skewX(-20deg); } }
+@keyframes glow-breathe { 0%, 100% { opacity: .45; } 50% { opacity: .85; } }
+
+.reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s cubic-bezier(.2,.7,.3,1), transform .7s cubic-bezier(.2,.7,.3,1); }
+.reveal.in-view { opacity: 1; transform: none; }
+
+.type-line { display: inline-block; overflow: hidden; white-space: nowrap; vertical-align: bottom; width: 0; animation: typing .9s steps(28, end) forwards; }
+.term-fade { opacity: 0; animation: term-fade .5s ease forwards; }
+.caret { display: inline-block; width: .6ch; background: #FF5638; animation: caret-blink 1s step-end infinite; }
+
+.shine-sweep { position: relative; overflow: hidden; }
+.shine-sweep::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 45%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.22), transparent);
+  transform: translateX(-160%) skewX(-20deg); }
+.shine-sweep:hover::after { animation: shine .75s ease; }
+
+.gradient-name { background: linear-gradient(100deg, #FF5638 10%, #FF7E64 45%, #F5C542 90%);
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .type-line { width: calc(var(--ch) * 1ch); animation: none; }
+  .term-fade { opacity: 1; animation: none; }
+  .caret, [class*="animate-"] { animation: none !important; }
+}
