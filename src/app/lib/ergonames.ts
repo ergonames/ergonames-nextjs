@@ -117,6 +117,30 @@ export async function getQuote(name: string): Promise<Quote | null> {
   } catch { return null; }
 }
 
+export interface StatsData {
+  totalNames: number;
+  uniqueMinters: number;
+  last24Hours: number;
+  last7Days: number;
+  perDay: { dayStartMs: number; count: number }[];
+  lengthDistribution: { length: number; count: number }[];
+  latest: {
+    name: string; tokenId: string; mintTransactionId: string;
+    timestampRegistered: number; registrationNumber: number;
+  }[];
+  priceMapCents: number[];
+}
+
+// Aggregate registry statistics for the public /stats page.
+export async function getStats(): Promise<StatsData | null> {
+  try {
+    const res = await fetch(`${API_URL}/stats`);
+    if (!res.ok) return null;
+    const s = await res.json();
+    return typeof s?.totalNames === "number" ? s : null;
+  } catch { return null; }
+}
+
 export interface MintsForAddress { minting: string[]; stuck: StuckMint[]; }
 
 // In-progress + stuck mints for a wallet (so they show in My Names too).

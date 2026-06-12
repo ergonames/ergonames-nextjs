@@ -178,6 +178,7 @@ export default function RecordsPage() {
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/mint" className="text-sm text-white/70 hover:text-white transition hidden sm:block">Register</Link>
+            <Link href="/stats" className="text-sm text-white/70 hover:text-white transition hidden sm:block">Stats</Link>
             <ThemeToggle />
             {address ? <span className="flex items-center gap-2.5 px-4 py-2 rounded-full border border-white/20 text-sm"><span className="h-2 w-2 rounded-full bg-ergo-500" /> {short(address)}</span>
               : <button onClick={connect} disabled={busy} className="px-5 py-2 rounded-full bg-ergo-500 hover:bg-ergo-600 text-white font-semibold text-sm transition disabled:opacity-50">{busy ? "Connecting…" : "Connect Wallet"}</button>}
