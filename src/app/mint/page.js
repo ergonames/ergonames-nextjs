@@ -233,7 +233,7 @@ export default function MintPage() {
                     <p className="text-body text-sm font-medium">Your NFT&apos;s on-chain artwork</p>
                     <SwatchRow label="Card" options={ART_BACKGROUNDS} value={artBg} onPick={setArtBg} />
                     <SwatchRow label="Tilde" options={ART_ACCENTS} value={artAccent} onPick={setArtAccent} />
-                    <SwatchRow label="Hexagon" options={ART_HEXAGONS} value={artHex} onPick={setArtHex} />
+                    <SwatchRow label="Frame" options={ART_HEXAGONS} value={artHex} onPick={setArtHex} />
                     <p className="text-muted text-xs">Stored forever on-chain — pick before you register.</p>
                   </div>
                 </div>

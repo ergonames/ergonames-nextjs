@@ -21,8 +21,11 @@ export const ART_ACCENTS = {
   gold: "#F5C542",
 };
 
-// Optional Ergo-style hexagon frame. "none" renders nothing; coordinates
-// mirror the bot's on-chain generator (pointy-top, r=200 on the 500px card).
+// Optional frame: the ErgoNames brand octagon (Logo V4) in selectable
+// colors. "none" renders nothing; coordinates mirror the bot's on-chain
+// generator (pointy-top regular octagon, r=200 on the 500px card). Keys keep
+// the ART_HEXAGONS/artHex names for wire compatibility — the option shipped
+// before the octagon rebrand.
 export const ART_HEXAGONS = {
   none: "",
   silver: "#C9CDD2",
@@ -34,7 +37,8 @@ export const ART_HEXAGONS = {
   gold: "#F5C542",
 };
 
-const HEXAGON_POINTS = "250,50 423.2,150 423.2,350 250,450 76.8,350 76.8,150";
+const HEXAGON_POINTS =
+  "250,50 391.4,108.6 450,250 391.4,391.4 250,450 108.6,391.4 50,250 108.6,108.6";
 
 export default function NftCard({ name, bg = "black", accent = "orange", hex = "none", className = "" }) {
   const bgHex = ART_BACKGROUNDS[bg] ?? ART_BACKGROUNDS.black;
