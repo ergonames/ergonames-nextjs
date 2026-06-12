@@ -59,6 +59,13 @@ export default function MintPage() {
     }, 500); return () => clearInterval(id);
   }, []);
 
+  // Prefill from the landing-page search (/mint?name=foo). Read from
+  // window.location instead of useSearchParams to avoid a Suspense boundary.
+  useEffect(() => {
+    const v = new URLSearchParams(window.location.search).get("name");
+    if (v && /^[a-zA-Z0-9_~]{1,26}$/.test(v)) setName(v.replace(/^~/, ""));
+  }, []);
+
   const clean = (n) => n.trim().replace(/^~/, ""); const short = (a) => `${a.slice(0, 5)}…${a.slice(-4)}`;
   const connect = async () => { setWalletErr(""); setConnectStep(""); setBusy(true);
     try { setAddress(await connectWallet(setConnectStep)); setConnectStep(""); } catch (e) { setWalletErr(e.message ?? String(e)); setConnectStep(""); } setBusy(false); };
