@@ -6,7 +6,7 @@ export const runtime = "edge";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.ergonames.io";
 
-const clean = (n) => decodeURIComponent(n ?? "").replace(/^~/, "").slice(0, 25);
+const clean = (n) => decodeURIComponent(n ?? "").replace(/^~/, "").slice(0, 25).toLowerCase();
 
 export async function generateMetadata({ params }) {
   const name = clean(params.name);

@@ -64,7 +64,7 @@ export default function Home() {
 
   const appUrl = (p) => `${appBase}${p}`;
   const go = () => {
-    const c = q.trim().replace(/^~/, "");
+    const c = q.trim().replace(/^~/, "").toLowerCase();
     const path = c ? `/mint?name=${encodeURIComponent(c)}` : "/mint";
     if (appBase) window.location.href = appUrl(path);
     else router.push(path);
@@ -106,7 +106,7 @@ export default function Home() {
                 className="flex-1 px-3 py-5 bg-transparent text-xl font-mono text-white placeholder:text-white/35 focus:outline-none min-w-0"
                 placeholder="find your name"
                 value={q}
-                onChange={(e) => setQ(e.target.value)}
+                onChange={(e) => setQ(e.target.value.toLowerCase())}
                 onKeyDown={(e) => e.key === "Enter" && go()}
                 aria-label="Search for a name"
               />

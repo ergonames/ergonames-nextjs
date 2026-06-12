@@ -89,7 +89,7 @@ export default function MintPage() {
     if (v && /^[a-zA-Z0-9_~]{1,26}$/.test(v)) setName(v.replace(/^~/, ""));
   }, []);
 
-  const clean = (n) => n.trim().replace(/^~/, ""); const short = (a) => `${a.slice(0, 5)}…${a.slice(-4)}`;
+  const clean = (n) => n.trim().replace(/^~/, "").toLowerCase(); const short = (a) => `${a.slice(0, 5)}…${a.slice(-4)}`;
   const connect = async () => { setWalletErr(""); setConnectStep(""); setBusy(true);
     try { setAddress(await connectWallet(setConnectStep)); setConnectStep(""); } catch (e) { setWalletErr(e.message ?? String(e)); setConnectStep(""); } setBusy(false); };
   const check = async () => { setResult(null); setStatus(""); setTracked(null); setQuote(null);
@@ -174,7 +174,7 @@ export default function MintPage() {
         <div className="w-full mt-9 flex items-stretch rounded-full bg-surface border border-line shadow-soft overflow-hidden focus-within:border-ergo-500/50 transition animate-fade-up" style={{ animationDelay: "120ms" }}>
           <span className="pl-5 self-center text-ergo-500 text-xl font-bold">~</span>
           <input className="flex-1 px-3 py-4 bg-transparent text-lg text-ink placeholder:text-muted/70 focus:outline-none"
-            placeholder="Search for a name" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && check()} />
+            placeholder="Search for a name" value={name} onChange={(e) => setName(e.target.value.toLowerCase())} onKeyDown={(e) => e.key === "Enter" && check()} />
           <button onClick={check} disabled={busy}
             className="px-7 bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition disabled:opacity-50">{busy ? "…" : "Search"}</button>
         </div>
