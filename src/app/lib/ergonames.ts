@@ -358,16 +358,61 @@ function friendlyError(e: any): string {
   return msg || "Something went wrong. Please try again.";
 }
 
+// ---- On-chain NFT art + royalty (display) ----------------------------------
+// The authentic artwork lives in the issuance box's R9 as a data: URI; the
+// royalty lives in R5 of the box whose id equals the token id (the EIP-24
+// issuer box). Both are display-only reads with graceful null fallbacks.
+
+export async function getOnChainArt(tokenId: string): Promise<string | null> {
+  try {
+    const tok = await (await fetch(`${EXPLORER_API}/api/v1/tokens/${tokenId}`)).json();
+    if (!tok?.boxId) return null;
+    const box = await (await fetch(`${EXPLORER_API}/api/v1/boxes/${tok.boxId}`)).json();
+    const r9 = box?.additionalRegisters?.R9?.renderedValue;
+    if (!r9) return null;
+    const text = hexToUtf8(r9);
+    return text.startsWith("data:image/") ? text : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getRoyaltyPerMille(tokenId: string): Promise<number | null> {
+  try {
+    const box = await (await fetch(`${EXPLORER_API}/api/v1/boxes/${tokenId}`)).json();
+    const r5 = box?.additionalRegisters?.R5;
+    if (!r5 || !r5.renderedValue) return null;
+    // Coll[(Coll[Byte], Int)] renders like "[([...bytes...],25)]" — pull the
+    // integer of the first pair. Legacy filler (empty Coll[Byte]) won't match.
+    const m = /,(\d+)\)/.exec(r5.renderedValue);
+    return m ? parseInt(m[1], 10) : null;
+  } catch {
+    return null;
+  }
+}
+
+function hexToUtf8(hex: string): string {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  return new TextDecoder().decode(bytes);
+}
+
 export interface MintProgress {
   (stage: string): void;
 }
 
 // Drives a full mint. The wallet must already be connected (call
 // connectWallet first); userAddress is passed in from that step.
+export interface ArtChoice {
+  bg?: string | null;
+  accent?: string | null;
+}
+
 export async function mintErgoName(
   name: string,
   userAddress: string,
   onProgress: MintProgress = () => {},
+  art: ArtChoice = {},
 ): Promise<{ commitTxId: string; proxyTxId: string }> {
   const wallet: any = (globalThis as any).__ergo ?? (typeof ergo !== "undefined" ? ergo : null);
   if (!wallet) {
@@ -445,6 +490,14 @@ export async function mintErgoName(
     commitBoxId,
     revealValue: p.revealValue,
     revealCreationHeight: p.creationHeight,
+    // Royalty terms are server-decided at /prepare and must be echoed back
+    // verbatim — they're hashed into the reveal box, and /submit rejects
+    // pendings whose terms don't match the server's.
+    royaltyPerMille: p.royaltyPerMille ?? 0,
+    royaltyAddress: p.royaltyAddress ?? null,
+    // User's art palette (whitelisted keys; null = the classic card).
+    artBg: art.bg ?? null,
+    artAccent: art.accent ?? null,
   };
   const { revealBoxHash } = await botPost("/reveal-hash", pending);
 

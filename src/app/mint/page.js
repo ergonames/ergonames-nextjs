@@ -2,8 +2,26 @@
 import { useState, useRef, useEffect } from "react";
 import { resolveName, mintErgoName, connectWallet, getStatus, txLink, refundStuckMint, getQuote, getReservedStatus, applyForVerification } from "../lib/ergonames";
 import HexLogo from "../components/HexLogo";
+import NftCard, { ART_BACKGROUNDS, ART_ACCENTS } from "../components/NftCard";
 import ThemeToggle from "../components/ThemeToggle";
 import Link from "next/link";
+
+// Swatch row for the NFT art customizer. The preview IS the artwork — the
+// bot renders the same SVG on-chain at register time.
+function SwatchRow({ label, options, value, onPick }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-muted text-xs w-16 shrink-0">{label}</span>
+      <div className="flex gap-1.5 flex-wrap">
+        {Object.entries(options).map(([key, hex]) => (
+          <button key={key} onClick={() => onPick(key)} title={key} aria-label={`${label}: ${key}`}
+            className={`h-7 w-7 rounded-full border-2 transition ${value === key ? "border-ergo-500 scale-110" : "border-line hover:border-muted"}`}
+            style={{ background: hex }} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function Avatar({ seed, size = 40 }) {
   let h = 0; for (const c of seed) h = (h * 31 + c.charCodeAt(0)) % 360;
@@ -53,6 +71,7 @@ export default function MintPage() {
   const [connectStep, setConnectStep] = useState(""); const [quote, setQuote] = useState(null); const pollRef = useRef(null);
   const [resStatus, setResStatus] = useState(null); const [proof, setProof] = useState("");
   const [contact, setContact] = useState(""); const [appSent, setAppSent] = useState(false); const [appErr, setAppErr] = useState("");
+  const [artBg, setArtBg] = useState("black"); const [artAccent, setArtAccent] = useState("orange");
 
   useEffect(() => {
     let t = 0; const id = setInterval(() => {
@@ -113,7 +132,7 @@ export default function MintPage() {
     if (inFlight && ["queued", "revealing", "registering"].includes(inFlight.state)) {
       setTracked(inFlight); startTracking(c); setBusy(false); return;
     }
-    try { await mintErgoName(c, address, setStatus); setStatus(""); setTracked({ state: "not_found" }); startTracking(c); } catch (e) { setStatus(`${e.message ?? e}`); } setBusy(false); };
+    try { await mintErgoName(c, address, setStatus, { bg: artBg, accent: artAccent }); setStatus(""); setTracked({ state: "not_found" }); startTracking(c); } catch (e) { setStatus(`${e.message ?? e}`); } setBusy(false); };
 
   const c = clean(name); const done = tracked ? stepsDone(tracked.state) : 0;
   const reservedLocked = result?.isReserved && !resStatus?.allowlisted;
@@ -204,6 +223,17 @@ export default function MintPage() {
               </div>
             ) : result.isAvailable ? (
               <div className="mt-5 flex flex-col gap-3">
+                <div className="rounded-2xl bg-raised border border-line p-4 flex flex-col sm:flex-row gap-4 items-center">
+                  <div className="w-28 h-28 shrink-0 rounded-xl overflow-hidden border border-line">
+                    <NftCard name={c} bg={artBg} accent={artAccent} className="w-full h-full" />
+                  </div>
+                  <div className="flex flex-col gap-2.5 min-w-0">
+                    <p className="text-body text-sm font-medium">Your NFT&apos;s on-chain artwork</p>
+                    <SwatchRow label="Card" options={ART_BACKGROUNDS} value={artBg} onPick={setArtBg} />
+                    <SwatchRow label="Tilde" options={ART_ACCENTS} value={artAccent} onPick={setArtAccent} />
+                    <p className="text-muted text-xs">Stored forever on-chain — pick before you register.</p>
+                  </div>
+                </div>
                 {quote ? <PriceBreakdown q={quote} />
                   : <p className="text-muted text-sm">Price: <span className="text-ink font-medium">${result.mintCost}</span> · loading breakdown…</p>}
                 <p className="text-muted text-xs text-center">Prices update live with the ERG/USD oracle.</p>

@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
-import { getNameStats, txLink } from "../../lib/ergonames";
+import { getNameStats, txLink, getOnChainArt, getRoyaltyPerMille } from "../../lib/ergonames";
 import HexLogo from "../../components/HexLogo";
-import HexArt from "../../components/HexArt";
+import NftCard from "../../components/NftCard";
 import ThemeToggle from "../../components/ThemeToggle";
 import Link from "next/link";
 
@@ -26,10 +26,20 @@ export default function NameView({ name }) {
   const [s, setS] = useState(null);
   const [err, setErr] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [art, setArt] = useState(null);
+  const [royalty, setRoyalty] = useState(null);
 
   useEffect(() => {
     if (!/^[a-zA-Z0-9_]{1,25}$/.test(name)) { setErr(true); return; }
-    getNameStats(name).then(setS).catch(() => setErr(true));
+    getNameStats(name).then((r) => {
+      setS(r);
+      // For minted names show the REAL artwork from the chain (issuance box
+      // R9) and the EIP-24 royalty from the issuer box.
+      if (r?.tokenId) {
+        getOnChainArt(r.tokenId).then(setArt);
+        getRoyaltyPerMille(r.tokenId).then(setRoyalty);
+      }
+    }).catch(() => setErr(true));
   }, [name]);
 
   const copyLink = async () => {
@@ -71,7 +81,9 @@ export default function NameView({ name }) {
             <div className="bg-surface border border-line rounded-3xl shadow-soft overflow-hidden">
               <div className="p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6">
                 <div className="w-32 h-32 shrink-0 rounded-2xl overflow-hidden border border-line">
-                  <HexArt name={name} className="w-full h-full" />
+                  {art
+                    ? <img src={art} alt={`~${name} on-chain artwork`} className="w-full h-full" />
+                    : <NftCard name={name} className="w-full h-full" />}
                 </div>
                 <div className="min-w-0 text-center sm:text-left">
                   <h1 className="text-3xl sm:text-4xl text-ink font-semibold truncate"><span className="text-ergo-500">~</span>{name}</h1>
@@ -94,6 +106,7 @@ export default function NameView({ name }) {
                   <Stat k="Mint transaction" v={short(s.mintTransactionId)} mono href={s.mintTransactionId ? txLink(s.mintTransactionId) : undefined} />
                   {date && <Stat k="Registered" v={date} />}
                   {s.registrationNumber != null && <Stat k="Registration #" v={String(s.registrationNumber)} />}
+                  {royalty != null && <Stat k="Secondary royalty" v={`${(royalty / 10).toFixed(1)}%`} />}
                 </div>
               )}
 

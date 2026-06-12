@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { connectWallet, getOwnedNames, getMints, refundStuckMint, getNameStats, getStatus, txLink } from "../lib/ergonames";
+import { connectWallet, getOwnedNames, getMints, refundStuckMint, getNameStats, getStatus, txLink, getOnChainArt } from "../lib/ergonames";
 import HexLogo from "../components/HexLogo";
 import HexArt from "../components/HexArt";
+import NftCard from "../components/NftCard";
 import ThemeToggle from "../components/ThemeToggle";
 import Link from "next/link";
 
@@ -17,7 +18,13 @@ const stepsDone = (s) => ({ not_found: 1, queued: 1, revealing: 2, registering: 
 // ── Detail: a registered name (art + stats) ────────────────────────────────
 function MintedDetail({ name }) {
   const [s, setS] = useState(null);
-  useEffect(() => { getNameStats(name).then(setS).catch(() => setS({})); }, [name]);
+  const [art, setArt] = useState(null);
+  useEffect(() => {
+    getNameStats(name).then((r) => {
+      setS(r);
+      if (r?.tokenId) getOnChainArt(r.tokenId).then(setArt);
+    }).catch(() => setS({}));
+  }, [name]);
   const date = s?.timestampRegistered ? new Date(Number(s.timestampRegistered)).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—";
   const Stat = ({ k, v, mono, href }) => (
     <div className="flex items-center justify-between gap-3 py-3 border-b border-line last:border-0">
@@ -29,7 +36,9 @@ function MintedDetail({ name }) {
   return (
     <div className="grid md:grid-cols-2 gap-6 animate-fade-up">
       <div className="rounded-3xl overflow-hidden border border-line shadow-soft aspect-square relative">
-        <HexArt name={name} className="w-full h-full" />
+        {art
+          ? <img src={art} alt={`~${name} on-chain artwork`} className="w-full h-full" />
+          : <NftCard name={name} className="w-full h-full" />}
         <div className="absolute inset-x-0 bottom-0 p-5 bg-gradient-to-t from-black/70 to-transparent">
           <div className="text-white text-2xl font-semibold"><span className="text-ergo-400">~</span>{name}</div>
         </div>
