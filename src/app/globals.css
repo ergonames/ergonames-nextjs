@@ -35,6 +35,6 @@ html, body {
 
 /* shimmer progress bar */
 .progress-shimmer {
-  background: linear-gradient(90deg, #FF5537 0%, #FF7E63 50%, #FF5537 100%);
+  background: linear-gradient(90deg, #FF5638 0%, #FF7E64 50%, #FF5638 100%);
   background-size: 200% 100%;
 }

@@ -10,7 +10,7 @@ module.exports = {
     extend: {
       colors: {
         // Brand (constant across themes)
-        ergo: { 400: "#FF7E63", 500: "#FF5537", 600: "#E8442A" },
+        ergo: { 400: "#FF7E64", 500: "#FF5638", 600: "#E8452B" }, // brand orange from Logo V4 masters
         mint: "#1EF79C",
         // Semantic — driven by CSS variables, switch with .dark
         page: "rgb(var(--page) / <alpha-value>)",
