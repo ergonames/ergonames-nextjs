@@ -406,6 +406,7 @@ export interface MintProgress {
 export interface ArtChoice {
   bg?: string | null;
   accent?: string | null;
+  hex?: string | null;
 }
 
 export async function mintErgoName(
@@ -498,6 +499,7 @@ export async function mintErgoName(
     // User's art palette (whitelisted keys; null = the classic card).
     artBg: art.bg ?? null,
     artAccent: art.accent ?? null,
+    artHex: art.hex && art.hex !== "none" ? art.hex : null,
   };
   const { revealBoxHash } = await botPost("/reveal-hash", pending);
 

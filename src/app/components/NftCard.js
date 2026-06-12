@@ -21,9 +21,25 @@ export const ART_ACCENTS = {
   gold: "#F5C542",
 };
 
-export default function NftCard({ name, bg = "black", accent = "orange", className = "" }) {
+// Optional Ergo-style hexagon frame. "none" renders nothing; coordinates
+// mirror the bot's on-chain generator (pointy-top, r=200 on the 500px card).
+export const ART_HEXAGONS = {
+  none: "",
+  silver: "#C9CDD2",
+  ember: "#FF5E18",
+  orange: "orange",
+  mint: "#2BD9A9",
+  sky: "#4DA6FF",
+  violet: "#B26EF7",
+  gold: "#F5C542",
+};
+
+const HEXAGON_POINTS = "250,50 423.2,150 423.2,350 250,450 76.8,350 76.8,150";
+
+export default function NftCard({ name, bg = "black", accent = "orange", hex = "none", className = "" }) {
   const bgHex = ART_BACKGROUNDS[bg] ?? ART_BACKGROUNDS.black;
   const accentHex = ART_ACCENTS[accent] ?? ART_ACCENTS.orange;
+  const hexColor = ART_HEXAGONS[hex] ?? "";
   // Match the on-chain card's proportions: font scales down for long names
   // (the on-chain SVG uses a fixed 42px at 500px; we shrink only when the
   // name would overflow the card).
@@ -31,6 +47,7 @@ export default function NftCard({ name, bg = "black", accent = "orange", classNa
   return (
     <svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" className={className}>
       <rect x="0" y="0" width="500" height="500" fill={bgHex} />
+      {hexColor && <polygon points={HEXAGON_POINTS} fill="none" stroke={hexColor} strokeWidth="7" />}
       <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" fontSize={fontSize} fontFamily="Monospace">
         <tspan fill={accentHex} fontWeight="bolder">~</tspan>
         <tspan fill="white">{name}</tspan>
