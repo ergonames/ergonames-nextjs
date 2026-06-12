@@ -35,13 +35,29 @@ const STEPS = [
 export default function Home() {
   const [q, setQ] = useState("");
   const [stats, setStats] = useState(null);
+  // Domain split: www.ergonames.io serves this landing; app.ergonames.io is
+  // the app, so its root forwards straight to /mint. On www, wallet-facing
+  // links cross to the app subdomain (the bot API's CORS allows app + www,
+  // but mint flows belong on app). Local dev keeps relative links.
+  const [appBase, setAppBase] = useState("");
   const router = useRouter();
 
-  useEffect(() => { getStats().then(setStats); }, []);
+  useEffect(() => {
+    const h = window.location.hostname;
+    if (h === "app.ergonames.io") { router.replace("/mint"); return; }
+    if (h.endsWith("ergonames.io") || h.endsWith("ergonames.com")) {
+      setAppBase("https://app.ergonames.io");
+    }
+    getStats().then(setStats);
+  }, [router]);
+
+  const appUrl = (p) => `${appBase}${p}`;
 
   const go = () => {
     const c = q.trim().replace(/^~/, "");
-    router.push(c ? `/mint?name=${encodeURIComponent(c)}` : "/mint");
+    const path = c ? `/mint?name=${encodeURIComponent(c)}` : "/mint";
+    if (appBase) window.location.href = appUrl(path);
+    else router.push(path);
   };
 
   return (
@@ -54,11 +70,11 @@ export default function Home() {
             <span className="ml-1 px-2 py-0.5 rounded-full border border-ergo-500/60 text-ergo-400 text-[10px] font-bold tracking-widest">BETA</span>
           </Link>
           <div className="flex items-center gap-3">
-            <Link href="/mint" className="text-sm text-white/70 hover:text-white transition hidden sm:block">Register</Link>
-            <Link href="/records" className="text-sm text-white/70 hover:text-white transition hidden sm:block">My Names</Link>
+            <a href={appUrl("/mint")} className="text-sm text-white/70 hover:text-white transition hidden sm:block">Register</a>
+            <a href={appUrl("/records")} className="text-sm text-white/70 hover:text-white transition hidden sm:block">My Names</a>
             <Link href="/stats" className="text-sm text-white/70 hover:text-white transition hidden sm:block">Stats</Link>
             <ThemeToggle />
-            <Link href="/mint" className="px-5 py-2 rounded-full bg-ergo-500 hover:bg-ergo-600 text-white font-semibold text-sm transition">Get your name</Link>
+            <a href={appUrl("/mint")} className="px-5 py-2 rounded-full bg-ergo-500 hover:bg-ergo-600 text-white font-semibold text-sm transition">Get your name</a>
           </div>
         </div>
       </header>
@@ -132,9 +148,9 @@ export default function Home() {
             ))}
           </div>
           <div className="mt-10 text-center">
-            <Link href="/mint" className="inline-block px-8 py-4 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition">
+            <a href={appUrl("/mint")} className="inline-block px-8 py-4 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition">
               Register your name
-            </Link>
+            </a>
           </div>
         </section>
       </main>
