@@ -382,9 +382,10 @@ export async function getRoyaltyPerMille(tokenId: string): Promise<number | null
     const box = await (await fetch(`${EXPLORER_API}/api/v1/boxes/${tokenId}`)).json();
     const r5 = box?.additionalRegisters?.R5;
     if (!r5 || !r5.renderedValue) return null;
-    // Coll[(Coll[Byte], Int)] renders like "[([...bytes...],25)]" — pull the
-    // integer of the first pair. Legacy filler (empty Coll[Byte]) won't match.
-    const m = /,(\d+)\)/.exec(r5.renderedValue);
+    // Coll[(Coll[Byte], Int)] renders like "[[<bytes>,25]]" (brackets, not
+    // parens) — pull the integer of the first pair. Legacy filler (empty
+    // Coll[Byte]) won't match.
+    const m = /,(\d+)[\]\)]/.exec(r5.renderedValue);
     return m ? parseInt(m[1], 10) : null;
   } catch {
     return null;
