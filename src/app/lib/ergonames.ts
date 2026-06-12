@@ -33,6 +33,7 @@ export const txLink = (txId: string) => `${EXPLORER}/transactions/${txId}`;
 export interface ResolveResult {
   isValid: boolean;
   isAvailable?: boolean;
+  isReserved?: boolean;
   ergoname?: string;
   mintCost?: number;
   owner?: string;
@@ -97,6 +98,45 @@ export async function getStuckMints(address: string): Promise<StuckMint[]> {
     const r = await (await fetch(`${BOT_URL}/stuck/${address}`)).json();
     return r.stuck || [];
   } catch { return []; }
+}
+
+export interface ReservedStatus {
+  reserved: boolean;
+  allowlisted: boolean;
+}
+
+// May this (connected) address mint a reserved name? Fail-closed: on any
+// error we report reserved + not allowlisted so the UI never offers a mint
+// that the bot would 409.
+export async function getReservedStatus(
+  name: string,
+  address?: string,
+): Promise<ReservedStatus> {
+  try {
+    const path = address ? `${name}/${address}` : name;
+    const res = await fetch(`${BOT_URL}/reserved/${path}`);
+    if (!res.ok) return { reserved: true, allowlisted: false };
+    return res.json();
+  } catch {
+    return { reserved: true, allowlisted: false };
+  }
+}
+
+// Verification application for a reserved name. Proof is free-form evidence
+// of identity (tweet from the official account, signed message, etc.).
+export async function applyForVerification(
+  name: string,
+  address: string,
+  proof: string,
+  contact: string,
+): Promise<void> {
+  const res = await fetch(`${BOT_URL}/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, address, proof, contact }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? `application failed (${res.status})`);
 }
 
 export interface Quote {

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { resolveName, mintErgoName, connectWallet, getStatus, txLink, refundStuckMint, getQuote } from "../lib/ergonames";
+import { resolveName, mintErgoName, connectWallet, getStatus, txLink, refundStuckMint, getQuote, getReservedStatus, applyForVerification } from "../lib/ergonames";
 import HexLogo from "../components/HexLogo";
 import ThemeToggle from "../components/ThemeToggle";
 import Link from "next/link";
@@ -51,6 +51,8 @@ export default function MintPage() {
   const [busy, setBusy] = useState(false); const [address, setAddress] = useState(null);
   const [walletErr, setWalletErr] = useState(""); const [detected, setDetected] = useState(null);
   const [connectStep, setConnectStep] = useState(""); const [quote, setQuote] = useState(null); const pollRef = useRef(null);
+  const [resStatus, setResStatus] = useState(null); const [proof, setProof] = useState("");
+  const [contact, setContact] = useState(""); const [appSent, setAppSent] = useState(false); const [appErr, setAppErr] = useState("");
 
   useEffect(() => {
     let t = 0; const id = setInterval(() => {
@@ -70,13 +72,37 @@ export default function MintPage() {
   const connect = async () => { setWalletErr(""); setConnectStep(""); setBusy(true);
     try { setAddress(await connectWallet(setConnectStep)); setConnectStep(""); } catch (e) { setWalletErr(e.message ?? String(e)); setConnectStep(""); } setBusy(false); };
   const check = async () => { setResult(null); setStatus(""); setTracked(null); setQuote(null);
+    setResStatus(null); setAppSent(false); setAppErr("");
     const c = clean(name);
     if (!/^[a-zA-Z0-9_]{1,25}$/.test(c)) { setResult({ error: "Names are 1–25 chars: letters, numbers, underscore." }); return; }
-    if (c.length < 8) { setResult({ error: "During the testing phase, only names with 8 or more characters can be registered." }); return; }
     setBusy(true);
-    try { const r = await resolveName(c); setResult(r); if (r.isAvailable) getQuote(c).then(setQuote); }
+    try {
+      const r = await resolveName(c);
+      if (r.isAvailable && r.isReserved) {
+        // Reserved names skip the testing-phase length gate: the page shows
+        // the verification flow, and a verified address may mint short names.
+        const st = await getReservedStatus(c, address ?? undefined);
+        setResStatus(st); setResult(r);
+        if (st.allowlisted) getQuote(c).then(setQuote);
+      } else if (c.length < 8) {
+        setResult({ error: "During the testing phase, only names with 8 or more characters can be registered." });
+      } else {
+        setResult(r); if (r.isAvailable) getQuote(c).then(setQuote);
+      }
+    }
     catch { setResult({ error: "Couldn't reach the name service. Try again." }); }
     setBusy(false); };
+  // Connecting a wallet after searching a reserved name: re-check whether the
+  // connected address is the verified owner.
+  useEffect(() => { (async () => {
+    if (result?.isReserved && address) {
+      const c2 = clean(name); const st = await getReservedStatus(c2, address);
+      setResStatus(st); if (st.allowlisted) getQuote(c2).then(setQuote);
+    }
+  })(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [address]);
+  const submitApply = async () => { setBusy(true); setAppErr("");
+    try { await applyForVerification(clean(name), address, proof, contact); setAppSent(true); }
+    catch (e) { setAppErr(e.message ?? String(e)); } setBusy(false); };
   const startTracking = (c) => { if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => { try { const s = await getStatus(c); setTracked(s);
       if (s.state === "registered" || s.state === "refunded") clearInterval(pollRef.current); } catch {} }, 15000); };
@@ -90,6 +116,7 @@ export default function MintPage() {
     try { await mintErgoName(c, address, setStatus); setStatus(""); setTracked({ state: "not_found" }); startTracking(c); } catch (e) { setStatus(`${e.message ?? e}`); } setBusy(false); };
 
   const c = clean(name); const done = tracked ? stepsDone(tracked.state) : 0;
+  const reservedLocked = result?.isReserved && !resStatus?.allowlisted;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -146,9 +173,36 @@ export default function MintPage() {
                 <Avatar seed={c || "x"} />
                 <span className="text-xl text-ink truncate"><span className="text-ergo-500">~</span>{result.isAvailable ? c : result.ergoname}</span></div>
               {result.isAvailable
-                ? <span className="px-3.5 py-1.5 rounded-full bg-mint/15 text-mint text-sm font-semibold shrink-0 border border-mint/30">Available</span>
+                ? (reservedLocked
+                  ? <span className="px-3.5 py-1.5 rounded-full bg-amber-500/15 text-amber-500 text-sm font-semibold shrink-0 border border-amber-500/30">Reserved</span>
+                  : <span className="px-3.5 py-1.5 rounded-full bg-mint/15 text-mint text-sm font-semibold shrink-0 border border-mint/30">Available</span>)
                 : <span className="px-3.5 py-1.5 rounded-full bg-raised text-muted text-sm font-semibold shrink-0">Taken</span>}</div>
-            {result.isAvailable ? (
+            {result.isAvailable && reservedLocked ? (
+              <div className="mt-5 flex flex-col gap-3">
+                <p className="text-body text-sm leading-relaxed">
+                  This name is reserved for its rightful owner — a project, brand, or well-known community member.
+                  If that&apos;s you, apply for verification below. Once approved, your wallet can mint it at the normal price.</p>
+                {appSent ? (
+                  <div className="p-4 rounded-2xl bg-mint/10 border border-mint/30 text-mint text-sm text-center">
+                    Application submitted ✓ — we&apos;ll review it shortly. Once approved, come back and register <b>~{c}</b> with this wallet.</div>
+                ) : !address ? (
+                  <button onClick={connect} disabled={busy} className="py-3.5 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition disabled:opacity-50">
+                    Connect wallet to apply for verification</button>
+                ) : (
+                  <>
+                    <input className="px-4 py-3 rounded-2xl bg-raised border border-line text-ink text-sm placeholder:text-muted/70 focus:outline-none focus:border-ergo-500/50"
+                      placeholder="Proof — e.g. link to a post from the official account mentioning this application" value={proof} onChange={(e) => setProof(e.target.value)} maxLength={500} />
+                    <input className="px-4 py-3 rounded-2xl bg-raised border border-line text-ink text-sm placeholder:text-muted/70 focus:outline-none focus:border-ergo-500/50"
+                      placeholder="Contact — Discord / X handle or email" value={contact} onChange={(e) => setContact(e.target.value)} maxLength={200} />
+                    <p className="text-muted text-xs">Minting wallet: {short(address)} — approval is tied to this address.</p>
+                    {appErr && <p className="text-red-500 text-sm text-center">{appErr}</p>}
+                    <button onClick={submitApply} disabled={busy || !proof.trim()}
+                      className="py-3.5 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition disabled:opacity-50">
+                      {busy ? "Submitting…" : "Apply for verification"}</button>
+                  </>
+                )}
+              </div>
+            ) : result.isAvailable ? (
               <div className="mt-5 flex flex-col gap-3">
                 {quote ? <PriceBreakdown q={quote} />
                   : <p className="text-muted text-sm">Price: <span className="text-ink font-medium">${result.mintCost}</span> · loading breakdown…</p>}
