@@ -16,7 +16,7 @@ openly).
 3. Environment variables (Production + Preview):
    - `NEXT_PUBLIC_API_URL = https://api.ergonames.io`
    - `NEXT_PUBLIC_BOT_URL = https://bot.ergonames.io`
-   - `NEXT_PUBLIC_BOT_TOKEN = 73df4c6c6e033010fae3547ce6c8b0f8178858016b0a55ac`
+   - `NEXT_PUBLIC_BOT_TOKEN = <set NEXT_PUBLIC_BOT_TOKEN in Cloudflare Pages env — do not commit the literal>`
    - `NODE_VERSION = 20`
 4. Deploy. Then Custom domains → add `app.ergonames.io` (Cloudflare adds the
    CNAME automatically if the zone is on Cloudflare).

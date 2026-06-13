@@ -25,6 +25,23 @@ const BOT_URL = process.env.NEXT_PUBLIC_BOT_URL ?? "https://bot.ergonames.io";
 const BOT_TOKEN = process.env.NEXT_PUBLIC_BOT_TOKEN ?? "";
 const EXPLORER = "https://explorer.ergoplatform.com";
 
+// Pinned protocol contract addresses (current mainnet genesis). The mint flow
+// builds USER-SIGNED commit + reveal-proxy boxes from the bot's /prepare
+// response; without pinning, a compromised/MITM'd bot could return an
+// attacker address and the user would sign funds to it. We assert the bot's
+// addresses match these before building any box. UPDATE THESE AT EVERY GENESIS
+// (the commit contract bakes in the registry singleton token id, so the
+// address changes when the registry is redeployed). Overridable via env for
+// staging/genesis cutover without a code change.
+const EXPECTED_COMMIT_ADDRESS =
+  process.env.NEXT_PUBLIC_COMMIT_ADDRESS ?? "2eR9oE6KNihih7gH3L6uZ39ej38mQukuEKN8vHLf5wE67Hg7wBSSAwf3P1yTVkB4uoNmLqEwwfF1PiW1xcNSSwhyY5jmQndtcC9gePWFC6LgwpMzi1iWP2VLTLZwnfuFUxxKx5TJgA8XFMdEmV6nGntVhKKKSrvGQteJRkJPU47m9EcZthzHMfja5rRjTErkXqh3pmWBwZNxBEAnHrNTBPuHt3eUhsKX9VFaqzEnTKPGdth5ftNFuEPToYpP4HPTyLQ24bZvinWVXBp8JBLtq8H64nXiKkb4DKKXRfCiksyjQhKgBLWjNdCjBRBgcZSkABvHThVP1HmSMrX9vZpCdu2AfGymLRSbQnZ9peAQsCBUHyd2jzrgp4XSUGcqLNkcd8GfM";
+const EXPECTED_PROXY_ADDRESS =
+  process.env.NEXT_PUBLIC_PROXY_ADDRESS ?? "YpQiTGJDYCJRNJCv15sLy7LtDugqPcRgPEG1oxEYxpRDQQSze2yYg91umNE9kfcsogUMy2S6HtF8VGnydFoshJjiowV1QUdHKnXVHFFwDhC1qLzuhzroEW2xsboAPGQN2nH79geX6hDHNkDvJa4AzkoQNwgCKcfc6JMkRfRngMc7A2Hmi2gCRLP1SjBMgjMR3iBYr9HeQ6j9hQ3V5gA3jgsR3LhcNHgEt7QS3Uj2sf8bF8Bh6nFqEW7bDmU9gJ8GQneTjBpMSWak6rqxiX94NDGdpbqqJNdmcPSKkVqLbED9cnbKR1FgpAMivsPcnZW5YT94F7nf1omYUfXijKuZgbD5D3ExLXB6EjWvLKn4bJS74dQCXenuHBUa3JsVAvpkShTzbeddW6FEnpDF727Jx3WfvAYSTHtmntMmgGnWfG82SBtDuWd133wD9f1kNAnuv83ZwAEjEMMQaCi1LmrC2FDgfkeWGwkgdisZTiuyKb45NwzW4t6QrzyFGsYWYbjvJcJ8hesvxACgnJJa5nzW3trATMA6afRzentY7u6AeGqSUiBj7puqqA8tp4p8w4";
+// Sanity ceiling on the funded values (nanoERG). Legitimate mints are well
+// under 1 ERG; this bounds a lying bot from inflating the spend even if an
+// address somehow matched. 10 ERG headroom for premium short names.
+const MAX_PROXY_VALUE = 10_000_000_000n;
+
 declare const ergo: any;
 declare const ergoConnector: any;
 
@@ -485,6 +502,22 @@ export async function mintErgoName(
 
   onProgress("Fetching price and parameters…");
   const p = await botPost("/prepare", { name, userAddress });
+
+  // SECURITY: the bot returns the addresses these user-signed boxes pay into.
+  // Verify them against the pinned protocol addresses BEFORE building anything,
+  // so a compromised/MITM'd bot cannot redirect the registration payment to an
+  // attacker. (The contract-level fund guarantees only protect funds once they
+  // are inside the CORRECT contracts — pinning the destination closes the gap.)
+  if (p.commitContractAddress !== EXPECTED_COMMIT_ADDRESS ||
+      p.revealProxyContractAddress !== EXPECTED_PROXY_ADDRESS) {
+    throw new Error(
+      "Registration aborted: the service returned an unexpected contract address. " +
+        "For your safety nothing was signed. Please report this — do not retry.",
+    );
+  }
+  if (BigInt(p.proxyValue) > MAX_PROXY_VALUE || BigInt(p.proxyValue) <= 0n) {
+    throw new Error("Registration aborted: the quoted amount is out of range. Nothing was signed.");
+  }
 
   const userPk = ErgoAddress.fromBase58(userAddress).getPublicKeys()[0];
 
