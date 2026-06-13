@@ -82,19 +82,30 @@ export default function MintPage() {
     }, 500); return () => clearInterval(id);
   }, []);
 
-  // Prefill from the landing-page search (/mint?name=foo). Read from
-  // window.location instead of useSearchParams to avoid a Suspense boundary.
+  // Prefill from the landing-page search (/mint?name=foo) AND run the search
+  // automatically — the landing hero's whole job is to hand off a query, so
+  // arriving here should show results, not require a second click. Pass the
+  // value straight into check() (state set via setName won't be readable in
+  // the same tick). Read from window.location instead of useSearchParams to
+  // avoid a Suspense boundary.
   useEffect(() => {
     const v = new URLSearchParams(window.location.search).get("name");
-    if (v && /^[a-zA-Z0-9_~]{1,26}$/.test(v)) setName(v.replace(/^~/, ""));
+    if (v && /^[a-zA-Z0-9_~]{1,26}$/.test(v)) {
+      const stripped = v.replace(/^~/, "");
+      setName(stripped);
+      check(stripped);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const clean = (n) => n.trim().replace(/^~/, "").toLowerCase(); const short = (a) => `${a.slice(0, 5)}…${a.slice(-4)}`;
   const connect = async () => { setWalletErr(""); setConnectStep(""); setBusy(true);
     try { setAddress(await connectWallet(setConnectStep)); setConnectStep(""); } catch (e) { setWalletErr(e.message ?? String(e)); setConnectStep(""); } setBusy(false); };
-  const check = async () => { setResult(null); setStatus(""); setTracked(null); setQuote(null);
+  const check = async (override) => { setResult(null); setStatus(""); setTracked(null); setQuote(null);
     setResStatus(null); setAppSent(false); setAppErr("");
-    const c = clean(name);
+    // `override` is a string only on the auto-search path; onClick passes a
+    // SyntheticEvent here, so fall back to state unless it's an actual string.
+    const c = clean(typeof override === "string" ? override : name);
     if (!/^[a-zA-Z0-9_]{1,25}$/.test(c)) { setResult({ error: "Names are 1–25 chars: letters, numbers, underscore." }); return; }
     setBusy(true);
     try {
