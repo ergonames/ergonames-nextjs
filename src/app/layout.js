@@ -1,5 +1,6 @@
 import { Poppins } from "next/font/google";
 import "./globals.css";
+import ReportIssue from "./components/ReportIssue";
 
 const poppins = Poppins({ subsets: ["latin"], variable: "--font-display", weight: ["400", "500", "600", "700"] });
 
@@ -15,7 +16,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`dark ${poppins.variable}`} suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
-      <body className="font-sans" style={{ margin: 0 }}>{children}</body>
+      <body className="font-sans" style={{ margin: 0 }}>{children}<ReportIssue /></body>
     </html>
   );
 }

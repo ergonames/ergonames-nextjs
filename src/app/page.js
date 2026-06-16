@@ -338,6 +338,7 @@ export default function Home() {
             <a href="https://github.com/ergonames" target="_blank" rel="noreferrer" className="hover:text-ink transition">GitHub</a>
             <Link href="/stats" className="hover:text-ink transition">Stats</Link>
             <a href="/whitepaper.pdf" className="hover:text-ink transition">Whitepaper</a>
+            <button type="button" onClick={() => window.dispatchEvent(new Event("ergonames:open-report"))} className="hover:text-ink transition">Report an issue</button>
           </div>
         </div>
       </footer>

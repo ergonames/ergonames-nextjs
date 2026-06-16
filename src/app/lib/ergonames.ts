@@ -201,6 +201,36 @@ export async function applyForVerification(
   if (!res.ok) throw new Error(body.error ?? `application failed (${res.status})`);
 }
 
+export type ReportCategory =
+  | "bug" | "mint" | "wallet" | "resolution" | "art" | "ui" | "suggestion" | "other";
+
+export interface IssueReport {
+  category: ReportCategory;
+  message: string;
+  contact?: string;
+  name?: string;
+  page?: string;
+  /** Honeypot — leave empty; a filled value is treated as a bot and dropped. */
+  website?: string;
+}
+
+// Submit a user issue/bug report. The bot forwards it to the team's Discord
+// channel (the webhook URL stays server-side, never in this bundle). Throws a
+// user-facing message on failure so the form can surface it.
+export async function reportIssue(report: IssueReport): Promise<void> {
+  const res = await fetch(`${BOT_URL}/report`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(report),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 429)
+    throw new Error("You've sent several reports already — please try again later.");
+  if (res.status === 503)
+    throw new Error("Reporting is temporarily unavailable. Please reach us on Discord.");
+  if (!res.ok) throw new Error(body.error ?? `Couldn't send the report (${res.status}).`);
+}
+
 export interface Quote {
   name: string; priceCents: number; nanoErgPerUsd: number;
   priceNanoErg: number; bufferNanoErg: number; networkFeeNanoErg: number;
