@@ -23,12 +23,13 @@ import {
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.ergonames.io";
 const BOT_URL = process.env.NEXT_PUBLIC_BOT_URL ?? "https://bot.ergonames.io";
 const BOT_TOKEN = process.env.NEXT_PUBLIC_BOT_TOKEN ?? "";
-// Beta-tester badge token id (minted on mainnet 2026-06-16). UPDATE AT GENESIS
-// like the contract addresses — the badge is minted on the beta deployment and
-// carried forward in wallets, so this id is stable across the cutover.
-export const BETA_BADGE_TOKEN_ID =
-  process.env.NEXT_PUBLIC_BETA_BADGE_TOKEN_ID ??
-  "d255b7bec76e7d91c6515ae5e03d3d855975656f72d16725d95610bfc8c4c227";
+// Beta-tester badge COLLECTION token id (EIP-34). Each badge is a 1-of-1 NFT in
+// this collection (renders + groups in wallets); the API counts a wallet's
+// badges. UPDATE AT GENESIS like the contract addresses — minted on the beta
+// deployment and carried forward in wallets, so this id is stable across cutover.
+export const BETA_BADGE_COLLECTION_ID =
+  process.env.NEXT_PUBLIC_BETA_BADGE_COLLECTION_ID ??
+  "363285d224b9eb9c82f0ba738a4ab9e8271d18d71792b59a43ee2665c8048718";
 const EXPLORER = "https://explorer.ergoplatform.com";
 
 // Pinned protocol contract addresses (current mainnet genesis). The mint flow
@@ -496,14 +497,13 @@ function hexToUtf8(hex: string): string {
   return new TextDecoder().decode(bytes);
 }
 
-// How many beta-tester badges an address holds. Display-only: returns 0 when
-// the badge isn't configured yet or on any error, and never throws.
+// How many beta-tester badges an address holds. Each badge is a unique 1-of-1
+// NFT in the Beta Tester collection, so the API counts the wallet's tokens that
+// the bot has minted as badges. Display-only: returns 0 on any error, never throws.
 export async function getBadgeBalance(address: string): Promise<number> {
-  if (!BETA_BADGE_TOKEN_ID) return 0;
   try {
-    const r = await (await fetch(`${EXPLORER_API}/api/v1/addresses/${address}/balance/confirmed`)).json();
-    const t = (r.tokens ?? []).find((x: any) => x.tokenId === BETA_BADGE_TOKEN_ID);
-    return t ? Number(t.amount) : 0;
+    const r = await (await fetch(`${API_URL}/badges/${address}`)).json();
+    return typeof r?.count === "number" ? r.count : 0;
   } catch {
     return 0;
   }
