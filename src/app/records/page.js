@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { connectWallet, getOwnedNames, getMints, refundStuckMint, getNameStats, getStatus, txLink, getOnChainArt, getRefundableCommits, refundCommit } from "../lib/ergonames";
+import { connectWallet, getOwnedNames, getMints, refundStuckMint, getNameStats, getStatus, txLink, getOnChainArt, getRefundableCommits, refundCommit, getBadgeBalance } from "../lib/ergonames";
 import HexLogo from "../components/HexLogo";
 import HexArt from "../components/HexArt";
 import NftCard from "../components/NftCard";
@@ -146,6 +146,7 @@ export default function RecordsPage() {
   const [minting, setMinting] = useState([]);
   const [stuck, setStuck] = useState([]);
   const [dust, setDust] = useState([]);
+  const [badges, setBadges] = useState(0);
   const [dustBusy, setDustBusy] = useState(""); // boxId being refunded
   const [dustMsg, setDustMsg] = useState("");
   const [sel, setSel] = useState(null); // { name, kind }
@@ -154,11 +155,12 @@ export default function RecordsPage() {
   const load = useCallback(async (addr) => {
     setBusy(true); setErr("");
     try {
-      const [names, mints, dustBoxes] = await Promise.all([
-        getOwnedNames(), getMints(addr), getRefundableCommits(addr),
+      const [names, mints, dustBoxes, badgeCount] = await Promise.all([
+        getOwnedNames(), getMints(addr), getRefundableCommits(addr), getBadgeBalance(addr),
       ]);
       const ownedSet = new Set(names.map((n) => n.name));
       setOwned(names);
+      setBadges(badgeCount);
       setMinting(mints.minting.filter((n) => !ownedSet.has(n)));
       // Never hide stuck entries behind owned names: a duplicate-mint can leave
       // a recoverable reveal box for a name the wallet also owns.
@@ -214,6 +216,13 @@ export default function RecordsPage() {
           <>
             <h1 className="text-3xl sm:text-4xl text-ink font-semibold tracking-tight animate-fade-up">My Names</h1>
             <p className="mt-2 text-muted animate-fade-up" style={{ animationDelay: "60ms" }}>Everything tied to your wallet — owned, minting, and anything that needs recovering.</p>
+            {badges > 0 && (
+              <div className="mt-4 inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-mint/[0.1] border border-mint/30 text-sm animate-fade-up" title="Earned by minting during the beta. Burn at launch for a Founder art flair.">
+                <span className="text-base leading-none">🏅</span>
+                <span className="text-ink font-medium">{badges} Beta Tester {badges === 1 ? "badge" : "badges"}</span>
+                <span className="text-muted hidden sm:inline">· burn for a Founder flair at launch</span>
+              </div>
+            )}
             {err && <div className="mt-6 p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-500 text-sm">{err}</div>}
 
             {!address ? (

@@ -251,6 +251,10 @@ export default function MintPage() {
                 {quote ? <PriceBreakdown q={quote} />
                   : <p className="text-muted text-sm">Price: <span className="text-ink font-medium">${result.mintCost}</span> · loading breakdown…</p>}
                 <p className="text-muted text-xs text-center">Prices update live with the ERG/USD oracle.</p>
+                <div className="rounded-2xl bg-mint/[0.08] border border-mint/25 px-4 py-3 text-sm flex items-start gap-2.5">
+                  <span className="text-base leading-none mt-0.5">🏅</span>
+                  <p className="text-body"><span className="text-ink font-medium">Beta reward:</span> registering during the beta earns you a <span className="text-ink font-medium">Beta Tester badge</span>. At mainnet launch, burn it to apply an exclusive Founder flair to your name&apos;s on-chain art.</p>
+                </div>
                 {!address
                   ? <button onClick={connect} disabled={busy} className="py-3.5 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition disabled:opacity-50">Connect wallet to register</button>
                   : <button onClick={mint} disabled={busy} className="py-3.5 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition disabled:opacity-50">{busy ? "Working…" : `Register ~${c}`}</button>}
@@ -286,6 +290,7 @@ export default function MintPage() {
               <div className="mt-3 flex flex-col items-center gap-1">
                 {tracked.registerTxId && <a className="text-ergo-500 underline text-sm" target="_blank" rel="noreferrer" href={txLink(tracked.registerTxId)}>View on explorer ↗</a>}
                 {tracked.refundTxId && <a className="text-ergo-500 underline text-sm" target="_blank" rel="noreferrer" href={txLink(tracked.refundTxId)}>View refund tx ↗</a>}
+                {tracked.state === "registered" && <span className="text-mint text-sm">🏅 A Beta Tester badge is on its way to your wallet.</span>}
                 {tracked.state === "registered" && <Link href={`/name/${c}`} className="text-ergo-500 underline text-sm">View & share your name page →</Link>}
                 {tracked.state === "registered" && <Link href="/records" className="text-muted text-sm hover:text-ink transition">See it in My Names →</Link>}
                 {!["registered", "refunded"].includes(tracked.state) && <span className="text-muted text-xs">You can close this page — it continues on-chain.</span>}

@@ -23,6 +23,12 @@ import {
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.ergonames.io";
 const BOT_URL = process.env.NEXT_PUBLIC_BOT_URL ?? "https://bot.ergonames.io";
 const BOT_TOKEN = process.env.NEXT_PUBLIC_BOT_TOKEN ?? "";
+// Beta-tester badge token id (minted on mainnet 2026-06-16). UPDATE AT GENESIS
+// like the contract addresses — the badge is minted on the beta deployment and
+// carried forward in wallets, so this id is stable across the cutover.
+export const BETA_BADGE_TOKEN_ID =
+  process.env.NEXT_PUBLIC_BETA_BADGE_TOKEN_ID ??
+  "d255b7bec76e7d91c6515ae5e03d3d855975656f72d16725d95610bfc8c4c227";
 const EXPLORER = "https://explorer.ergoplatform.com";
 
 // Pinned protocol contract addresses (current mainnet genesis). The mint flow
@@ -488,6 +494,19 @@ function hexToUtf8(hex: string): string {
   const bytes = new Uint8Array(hex.length / 2);
   for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
   return new TextDecoder().decode(bytes);
+}
+
+// How many beta-tester badges an address holds. Display-only: returns 0 when
+// the badge isn't configured yet or on any error, and never throws.
+export async function getBadgeBalance(address: string): Promise<number> {
+  if (!BETA_BADGE_TOKEN_ID) return 0;
+  try {
+    const r = await (await fetch(`${EXPLORER_API}/api/v1/addresses/${address}/balance/confirmed`)).json();
+    const t = (r.tokens ?? []).find((x: any) => x.tokenId === BETA_BADGE_TOKEN_ID);
+    return t ? Number(t.amount) : 0;
+  } catch {
+    return 0;
+  }
 }
 
 export interface MintProgress {
