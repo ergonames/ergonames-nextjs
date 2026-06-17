@@ -77,3 +77,34 @@ html, body {
   .term-fade { opacity: 1; animation: none; }
   .caret, [class*="animate-"] { animation: none !important; }
 }
+
+/* ============ THE LIVING TILDE — editorial redesign system ============ */
+
+/* Type scale: enormous, confident, two-weight (300 framing / 600–700 voice). */
+.h-hero { font-size: clamp(2.6rem, 8.2vw, 6rem); letter-spacing: -0.04em; line-height: 0.95; }
+.h-sec  { font-size: clamp(1.85rem, 5vw, 3.3rem); letter-spacing: -0.03em; line-height: 1.04; }
+.eyebrow { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; font-weight: 500; }
+
+/* The name-as-input lives inside the H1 — sized to read as part of the headline. */
+.name-input { width: clamp(170px, 44vw, 380px); }
+.name-input::placeholder { font-weight: 300; }
+
+/* The spine: the flattened tilde, reused as every section's divider. */
+.spine-rule {
+  height: 1px; width: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,86,56,0.55) 22%, rgba(255,86,56,0.55) 78%, transparent);
+}
+
+/* Verify rows — the wave "points" at what you can check. */
+.verify-tilde { opacity: 0.35; display: inline-block; transition: opacity 0.2s ease, transform 0.2s ease; }
+.verify-row:hover .verify-tilde { opacity: 1; transform: translateX(3px); }
+
+/* FAQ disclosure. */
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary { outline: none; }
+.faq[open] .faq-plus { transform: rotate(45deg); }
+
+/* Typewriter caret for the hero name placeholder. */
+.tw-caret { display: inline-block; width: 0.05em; height: 0.78em; margin-left: 0.06em; align-self: center; background: #FF5638; animation: caret-blink 1.05s step-end infinite; }
+
+/* The landing is a committed dark experience regardless of the app theme. */
