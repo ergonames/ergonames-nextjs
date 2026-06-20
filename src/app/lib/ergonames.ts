@@ -371,10 +371,12 @@ function toFleetBox(b: any): any {
   };
 }
 
-// Recovers funds from a mint that reached the reveal stage but couldn't
-// register. Builds the reveal-refund (spends the protocol collection box + the
-// user's reveal box) and the user signs it — the operator can't, since the
-// reveal box requires the user's key.
+// Recovers funds from a mint that couldn't complete, in either of two stages —
+// the user signs it (the operator can't, both boxes require the user's key):
+//   • reveal-stage: the reveal happened but register failed → spends the
+//     protocol collection box + the user's reveal box.
+//   • proxy-stage: the reveal never landed → the user reclaims the proxy box
+//     directly (single input, [user payout, miner fee]).
 export async function refundStuckMint(
   name: string,
   onProgress: (s: string) => void = () => {},
@@ -386,6 +388,8 @@ export async function refundStuckMint(
   const infoRes = await fetch(`${BOT_URL}/refund-info/${name}`);
   if (!infoRes.ok) throw new Error(`No refundable registration found for ~${name}.`);
   const info = await infoRes.json();
+
+  if (info.stage === "proxy") return refundProxyStage(info, wallet, onProgress);
 
   onProgress("Fetching on-chain boxes…");
   const collRes = await (await fetch(`${EXPLORER_API}/api/v1/boxes/unspent/byTokenId/${info.collectionSingletonTokenId}`)).json();
@@ -419,6 +423,46 @@ export async function refundStuckMint(
     .to([collectionOut, userOut])
     .payFee(BigInt(info.minerFee))
     .sendChangeTo(info.userAddress)
+    .build()
+    .toEIP12Object();
+
+  onProgress("Awaiting wallet signature…");
+  const signed = await wallet.sign_tx(tx);
+  const txId = await wallet.submit_tx(signed);
+  onProgress(`Refund submitted (${txId.slice(0, 10)}…). Funds will return shortly.`);
+  return txId;
+}
+
+// Proxy-stage refund: the reveal never landed, so the user reclaims the whole
+// proxy box (less the miner fee) in a single-input tx. The reveal-proxy
+// contract's refund branch requires exactly two outputs — [user payout, miner
+// fee] — with the payout equal to the box value minus the R5 miner fee, so we
+// add no change box.
+async function refundProxyStage(
+  info: any,
+  wallet: any,
+  onProgress: (s: string) => void,
+): Promise<string> {
+  onProgress("Fetching on-chain box…");
+  const proxyRaw = await (await fetch(`${EXPLORER_API}/api/v1/boxes/${info.proxyBoxId}`)).json();
+  if (!proxyRaw || proxyRaw.error) throw new Error("Proxy box not found on-chain.");
+  if (proxyRaw.spentTransactionId) throw new Error("These funds were already recovered.");
+  const proxyBox = toFleetBox(proxyRaw);
+
+  // The contract checks the miner fee against the box's own R5 register.
+  const minerFee = BigInt(proxyRaw.additionalRegisters.R5.renderedValue);
+
+  onProgress("Building refund transaction…");
+  const userOut = new OutputBuilder(BigInt(proxyRaw.value) - minerFee, info.userAddress);
+  // The contract requires the payout's tokens to equal the proxy's tokens
+  // (a custom-token mint carries the payment token through the refund).
+  if (proxyBox.assets.length) userOut.addTokens(proxyBox.assets);
+
+  const height = await wallet.get_current_height();
+  const tx = new TransactionBuilder(height)
+    .from([proxyBox])
+    .to([userOut])
+    .payFee(minerFee)
     .build()
     .toEIP12Object();
 
@@ -507,6 +551,41 @@ export async function getBadgeBalance(address: string): Promise<number> {
   } catch {
     return 0;
   }
+}
+
+export interface ReverseResult {
+  address: string;
+  primary: string | null;
+  names: { name: string; tokenId: string }[];
+}
+
+// Address → the names it holds + the wallet's chosen primary (the name that
+// reverse resolution returns for this address). Display-only; never throws.
+export async function getReverse(address: string): Promise<ReverseResult> {
+  try {
+    const r = await (await fetch(`${API_URL}/reverse/${address}`)).json();
+    return {
+      address,
+      primary: r?.primary ?? null,
+      names: Array.isArray(r?.names) ? r.names : [],
+    };
+  } catch {
+    return { address, primary: null, names: [] };
+  }
+}
+
+// Set the wallet's primary name. The API verifies the address currently owns the
+// name (ownership-gated) before accepting it. Throws a user-facing message.
+export async function setPrimaryName(name: string, address: string): Promise<void> {
+  const res = await fetch(`${API_URL}/set-primary`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, address }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 429) throw new Error("Too many changes — please try again in a minute.");
+  if (res.status === 403) throw new Error("This wallet doesn't currently own that name.");
+  if (!res.ok) throw new Error(body.error ?? `Couldn't set primary (${res.status}).`);
 }
 
 export interface MintProgress {
