@@ -40,7 +40,7 @@ const GALLERY = [
 const VERIFY = [
   ["Registry state", "live on the Ergo explorer", "https://explorer.ergoplatform.com"],
   ["Contract code", "github.com/ergonames", "https://github.com/ergonames"],
-  ["Resolution SDK", "@ergonames/sdk — zero dependencies, MIT", "https://github.com/ergonames/ergonames-services/tree/master/sdk"],
+  ["Resolution SDK", "ergonames — zero dependencies, MIT", "https://github.com/ergonames/ergonames-services/tree/master/sdk"],
   ["Live registrations", "ergonames.io/stats", "/stats"],
 ];
 
@@ -418,9 +418,9 @@ export default function Home() {
           <p className="eyebrow text-white/40 reveal">Building on Ergo</p>
           <h2 className="reveal mt-6 h-sec font-light max-w-2xl">Two calls. <span className="font-semibold">Reads the chain.</span> No server.</h2>
           <div className="reveal mt-12 font-mono text-[clamp(0.95rem,2.6vw,1.6rem)] leading-[1.8]">
-            <div className="text-white/35 text-base">// npm install @ergonames/sdk</div>
-            <div className="mt-4"><span className="text-ergo-400">resolveAddress</span><span className="text-white/80">(</span><span className="text-mint">&quot;~alice&quot;</span><span className="text-white/80">)</span> <span className="text-white/30 text-base">→ 9h2quS8e…</span></div>
-            <div><span className="text-ergo-400">primaryName</span><span className="text-white/80">(addr)</span> <span className="text-white/30 text-base">→ &quot;alice&quot;</span></div>
+            <div className="text-white/35 text-base">// npm install ergonames</div>
+            <div className="mt-4"><span className="text-white/45">ergonames.</span><span className="text-ergo-400">resolveAddress</span><span className="text-white/80">(</span><span className="text-mint">&quot;~alice&quot;</span><span className="text-white/80">)</span> <span className="text-white/30 text-base">→ 9h2quS8e…</span></div>
+            <div><span className="text-white/45">ergonames.</span><span className="text-ergo-400">primaryName</span><span className="text-white/80">(addr)</span> <span className="text-white/30 text-base">→ &quot;alice&quot;</span></div>
           </div>
           <div className="reveal mt-10 flex gap-4">
             <a href="https://github.com/ergonames/ergonames-services/tree/master/sdk" target="_blank" rel="noreferrer" className="px-5 py-2.5 rounded-full bg-ergo-500 hover:bg-ergo-400 text-white font-semibold text-sm transition">SDK docs</a>
