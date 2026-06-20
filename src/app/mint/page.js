@@ -262,7 +262,16 @@ export default function MintPage() {
             ) : (result.owner && <p className="mt-3 text-muted text-xs break-all">Owner: {result.owner}</p>)}
           </div>)}
 
-        {busy && status && <p className="w-full mt-5 text-center text-muted text-sm animate-fade-in">{status}</p>}
+        {busy && status && (
+          <div className="w-full mt-5 text-center animate-fade-in">
+            <p className="text-muted text-sm">{status}</p>
+            {/signature|awaiting|sign/i.test(status) && (
+              <p className="text-muted/70 text-xs mt-1.5 max-w-sm mx-auto">
+                Nautilus opens a popup to sign. If it looks cut off or doesn&apos;t appear, click the Nautilus icon in your browser toolbar to reopen it.
+              </p>
+            )}
+          </div>
+        )}
         {!busy && status && <p className="w-full mt-5 text-center text-red-500 text-sm animate-fade-in">{status}</p>}
 
         {tracked && (
