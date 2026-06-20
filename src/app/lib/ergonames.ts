@@ -581,41 +581,6 @@ export async function getBadgeBalance(address: string): Promise<number> {
   }
 }
 
-export interface ReverseResult {
-  address: string;
-  primary: string | null;
-  names: { name: string; tokenId: string }[];
-}
-
-// Address → the names it holds + the wallet's chosen primary (the name that
-// reverse resolution returns for this address). Display-only; never throws.
-export async function getReverse(address: string): Promise<ReverseResult> {
-  try {
-    const r = await (await fetch(`${API_URL}/reverse/${address}`)).json();
-    return {
-      address,
-      primary: r?.primary ?? null,
-      names: Array.isArray(r?.names) ? r.names : [],
-    };
-  } catch {
-    return { address, primary: null, names: [] };
-  }
-}
-
-// Set the wallet's primary name. The API verifies the address currently owns the
-// name (ownership-gated) before accepting it. Throws a user-facing message.
-export async function setPrimaryName(name: string, address: string): Promise<void> {
-  const res = await fetch(`${API_URL}/set-primary`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, address }),
-  });
-  const body = await res.json().catch(() => ({}));
-  if (res.status === 429) throw new Error("Too many changes — please try again in a minute.");
-  if (res.status === 403) throw new Error("This wallet doesn't currently own that name.");
-  if (!res.ok) throw new Error(body.error ?? `Couldn't set primary (${res.status}).`);
-}
-
 export interface MintProgress {
   (stage: string): void;
 }
