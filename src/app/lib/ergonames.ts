@@ -156,8 +156,7 @@ export async function refundCommit(boxId: string, userAddress: string): Promise<
     .build()
     .toEIP12Object();
 
-  const signed = await wallet.sign_tx(tx);
-  return wallet.submit_tx(signed);
+  return signSubmit(wallet, tx);
 }
 
 export interface StuckMint { name: string; revealValue: number; }
@@ -427,8 +426,7 @@ export async function refundStuckMint(
     .toEIP12Object();
 
   onProgress("Awaiting wallet signature…");
-  const signed = await wallet.sign_tx(tx);
-  const txId = await wallet.submit_tx(signed);
+  const txId = await signSubmit(wallet, tx);
   onProgress(`Refund submitted (${txId.slice(0, 10)}…). Funds will return shortly.`);
   return txId;
 }
@@ -467,8 +465,7 @@ async function refundProxyStage(
     .toEIP12Object();
 
   onProgress("Awaiting wallet signature…");
-  const signed = await wallet.sign_tx(tx);
-  const txId = await wallet.submit_tx(signed);
+  const txId = await signSubmit(wallet, tx);
   onProgress(`Refund submitted (${txId.slice(0, 10)}…). Funds will return shortly.`);
   return txId;
 }
@@ -488,9 +485,28 @@ async function botPost(path: string, body: any): Promise<any> {
   return res.json();
 }
 
+/**
+ * Turn any thrown value into a human-readable string. Wallet / dApp-connector
+ * errors (Nautilus, EIP-12) reject with PLAIN OBJECTS like `{ code, info }`
+ * that have no `.message`, so `String(e)` on them yields "[object Object]".
+ * Unwrap the common shapes; never return "[object Object]".
+ */
+export function errMsg(e: any): string {
+  if (e == null) return "Something went wrong. Please try again.";
+  if (typeof e === "string") return e;
+  if (typeof e.message === "string" && e.message) return e.message;
+  if (typeof e.info === "string" && e.info) return e.info; // EIP-12 { code, info }
+  if (e.error) return errMsg(e.error);
+  try {
+    const s = JSON.stringify(e);
+    if (s && s !== "{}" && s !== "[]") return s;
+  } catch { /* circular ref — fall through */ }
+  return "Something went wrong. Please try again.";
+}
+
 // Maps raw wallet/build errors to messages a user can act on.
 function friendlyError(e: any): string {
-  const msg = String(e?.message ?? e ?? "");
+  const msg = errMsg(e);
   if (/not connected|connect/i.test(msg) && /wallet/i.test(msg))
     return "Wallet not connected.";
   if (/insufficient|not enough|cannot cover/i.test(msg))
@@ -499,6 +515,18 @@ function friendlyError(e: any): string {
     return "You cancelled the transaction in your wallet.";
   if (/busy|try again/i.test(msg)) return msg;
   return msg || "Something went wrong. Please try again.";
+}
+
+// Sign + submit a built tx, normalizing the EIP-12 object rejections Nautilus
+// throws (e.g. { code, info } on user-reject) into a real Error so refund
+// callers never surface "[object Object]".
+async function signSubmit(wallet: any, tx: any): Promise<string> {
+  try {
+    const signed = await wallet.sign_tx(tx);
+    return await wallet.submit_tx(signed);
+  } catch (e) {
+    throw new Error(friendlyError(e));
+  }
 }
 
 // ---- On-chain NFT art + royalty (display) ----------------------------------

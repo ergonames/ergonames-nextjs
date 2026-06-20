@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { resolveName, mintErgoName, connectWallet, getStatus, txLink, refundStuckMint, getQuote, getReservedStatus, applyForVerification } from "../lib/ergonames";
+import { resolveName, mintErgoName, connectWallet, getStatus, txLink, refundStuckMint, getQuote, getReservedStatus, applyForVerification, errMsg } from "../lib/ergonames";
 import HexLogo from "../components/HexLogo";
 import NftCard, { ART_BACKGROUNDS, ART_ACCENTS, ART_HEXAGONS } from "../components/NftCard";
 import ThemeToggle from "../components/ThemeToggle";
@@ -100,7 +100,7 @@ export default function MintPage() {
 
   const clean = (n) => n.trim().replace(/^~/, "").toLowerCase(); const short = (a) => `${a.slice(0, 5)}…${a.slice(-4)}`;
   const connect = async () => { setWalletErr(""); setConnectStep(""); setBusy(true);
-    try { setAddress(await connectWallet(setConnectStep)); setConnectStep(""); } catch (e) { setWalletErr(e.message ?? String(e)); setConnectStep(""); } setBusy(false); };
+    try { setAddress(await connectWallet(setConnectStep)); setConnectStep(""); } catch (e) { setWalletErr(errMsg(e)); setConnectStep(""); } setBusy(false); };
   const check = async (override) => { setResult(null); setStatus(""); setTracked(null); setQuote(null);
     setResStatus(null); setAppSent(false); setAppErr("");
     // `override` is a string only on the auto-search path; onClick passes a
@@ -134,7 +134,7 @@ export default function MintPage() {
   })(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [address]);
   const submitApply = async () => { setBusy(true); setAppErr("");
     try { await applyForVerification(clean(name), address, proof, contact); setAppSent(true); }
-    catch (e) { setAppErr(e.message ?? String(e)); } setBusy(false); };
+    catch (e) { setAppErr(errMsg(e)); } setBusy(false); };
   const startTracking = (c) => { if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => { try { const s = await getStatus(c); setTracked(s);
       if (s.state === "registered" || s.state === "refunded") clearInterval(pollRef.current); } catch {} }, 15000); };
@@ -145,7 +145,7 @@ export default function MintPage() {
     if (inFlight && ["queued", "revealing", "registering"].includes(inFlight.state)) {
       setTracked(inFlight); startTracking(c); setBusy(false); return;
     }
-    try { await mintErgoName(c, address, setStatus, { bg: artBg, accent: artAccent, hex: artHex }); setStatus(""); setTracked({ state: "not_found" }); startTracking(c); } catch (e) { setStatus(`${e.message ?? e}`); } setBusy(false); };
+    try { await mintErgoName(c, address, setStatus, { bg: artBg, accent: artAccent, hex: artHex }); setStatus(""); setTracked({ state: "not_found" }); startTracking(c); } catch (e) { setStatus(errMsg(e)); } setBusy(false); };
 
   const c = clean(name); const done = tracked ? stepsDone(tracked.state) : 0;
   const reservedLocked = result?.isReserved && !resStatus?.allowlisted;
