@@ -502,6 +502,19 @@ export function errMsg(e: any): string {
   if (typeof e.message === "string" && e.message) return e.message;
   if (typeof e.info === "string" && e.info) return e.info; // EIP-12 { code, info }
   if (e.error) return errMsg(e.error);
+  // Some wallet/connector bridges serialize a STRING error by spreading it into
+  // an object with sequential numeric keys: {"0":"T","1":"r",...}. Detect that
+  // shape and rejoin it into the original message (else it renders as gibberish).
+  if (typeof e === "object") {
+    const keys = Object.keys(e);
+    if (
+      keys.length > 0 &&
+      keys.every((k, i) => k === String(i)) &&
+      Object.values(e).every((v) => typeof v === "string" && (v as string).length === 1)
+    ) {
+      return Object.values(e).join("");
+    }
+  }
   try {
     const s = JSON.stringify(e);
     if (s && s !== "{}" && s !== "[]") return s;
@@ -516,8 +529,8 @@ function friendlyError(e: any): string {
     return "Wallet not connected.";
   if (/insufficient|not enough|cannot cover/i.test(msg))
     return "Not enough ERG in your wallet to cover the registration.";
-  if (/reject|declined|cancell?ed|denied/i.test(msg))
-    return "You cancelled the transaction in your wallet.";
+  if (/reject|declined|cancell?ed|denied|ended before|aborted|closed/i.test(msg))
+    return "The transaction was cancelled in your wallet.";
   if (/busy|try again/i.test(msg)) return msg;
   return msg || "Something went wrong. Please try again.";
 }
