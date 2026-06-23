@@ -99,7 +99,12 @@ export interface OwnedName { name: string; tokenId: string; }
 export async function getOwnedNames(): Promise<OwnedName[]> {
   const wallet: any = (globalThis as any).__ergo ?? (typeof ergo !== "undefined" ? ergo : null);
   if (!wallet) throw new Error("Wallet not connected.");
-  const utxos: any[] = await wallet.get_utxos();
+  // An empty wallet makes get_utxos() hang in Nautilus. A 0-ERG wallet holds no
+  // boxes (every box carries ERG), so it owns no name NFTs — short-circuit it.
+  try {
+    if (BigInt(await withTimeout(wallet.get_balance(), 10000, "Reading wallet balance")) === 0n) return [];
+  } catch { /* connector without get_balance — fall through */ }
+  const utxos: any[] = (await withTimeout(wallet.get_utxos(), 20000, "Reading wallet boxes").catch(() => [])) as any[];
   const tokenIds = new Set<string>();
   for (const u of utxos) for (const a of u.assets || []) tokenIds.add(a.tokenId);
 
@@ -619,8 +624,6 @@ export async function mintErgoName(
     throw new Error(`~${name} is already being registered — check My Names for progress.`);
   }
 
-  const utxos = (await withTimeout(wallet.get_utxos(), 30000, "Reading wallet boxes")) as any[];
-
   onProgress("Fetching price and parameters…");
   const p = await botPost("/prepare", { name, userAddress });
 
@@ -638,6 +641,30 @@ export async function mintErgoName(
   }
   if (BigInt(p.proxyValue) > MAX_PROXY_VALUE || BigInt(p.proxyValue) <= 0n) {
     throw new Error("Registration aborted: the quoted amount is out of range. Nothing was signed.");
+  }
+
+  // Funds preflight. An empty/underfunded wallet makes Nautilus's get_utxos()
+  // hang — which used to surface as a misleading "Reading wallet boxes timed
+  // out — is Nautilus installed and unlocked?" even though the wallet is fine,
+  // just empty. get_balance() returns instantly (0 for empty), so check it first
+  // and fail with a clear, actionable message.
+  const ergFmt = (n: bigint) => (Number(n) / 1e9).toFixed(3);
+  const required = BigInt(p.proxyValue) + BigInt(p.txOperatorFee) + BigInt(p.minerFee) * 2n;
+  let balance = -1n;
+  try {
+    balance = BigInt(await withTimeout(wallet.get_balance(), 15000, "Reading wallet balance"));
+  } catch { /* connector without get_balance — fall through to the box read */ }
+  if (balance === 0n) {
+    throw new Error(`Your wallet is empty — add about ${ergFmt(required)} ERG to register ~${name}.`);
+  }
+  if (balance > 0n && balance < required) {
+    throw new Error(`Not enough ERG to register ~${name}: you have ${ergFmt(balance)}, but it costs about ${ergFmt(required)} ERG.`);
+  }
+
+  onProgress("Reading your wallet…");
+  const utxos = (await withTimeout(wallet.get_utxos(), 30000, "Reading your wallet's funds")) as any[];
+  if (!utxos || utxos.length === 0) {
+    throw new Error(`Your wallet has no spendable ERG — add about ${ergFmt(required)} ERG to register ~${name}.`);
   }
 
   const userPk = ErgoAddress.fromBase58(userAddress).getPublicKeys()[0];
