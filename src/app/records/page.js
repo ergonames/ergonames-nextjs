@@ -155,19 +155,21 @@ export default function RecordsPage() {
   const load = useCallback(async (addr) => {
     setBusy(true); setErr("");
     try {
-      const [names, mints, dustBoxes, badgeCount] = await Promise.all([
-        getOwnedNames(), getMints(addr), getRefundableCommits(addr), getBadgeBalance(addr),
-      ]);
+      // Render the core (owned names + in-flight/stuck) as soon as it's ready —
+      // these are fast. Don't block the whole page on the slow explorer scans.
+      const [names, mints] = await Promise.all([getOwnedNames(), getMints(addr)]);
       const ownedSet = new Set(names.map((n) => n.name));
       setOwned(names);
-      setBadges(badgeCount);
       setMinting(mints.minting.filter((n) => !ownedSet.has(n)));
       // Never hide stuck entries behind owned names: a duplicate-mint can leave
       // a recoverable reveal box for a name the wallet also owns.
       setStuck(mints.stuck);
-      setDust(dustBoxes);
-    } catch (e) { setErr(e.message ?? String(e)); }
-    setBusy(false);
+      setBusy(false);
+      // Recoverable dust (~2s explorer scan) + badge count load in the
+      // background and fill in when ready, so they never delay the names list.
+      getRefundableCommits(addr).then(setDust).catch(() => {});
+      getBadgeBalance(addr).then(setBadges).catch(() => {});
+    } catch (e) { setErr(e.message ?? String(e)); setBusy(false); }
   }, []);
 
   const connect = async () => {
