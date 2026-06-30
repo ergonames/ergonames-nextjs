@@ -844,7 +844,7 @@ export interface GovProposal {
   createdAt: number; hasReduced: boolean;
 }
 export interface GovProposalDetail extends GovProposal {
-  signers: string[]; unsignedTx: any;
+  signers: string[]; unsignedTx: any; params: any;
 }
 
 export async function govConfig(): Promise<GovConfig> { return govGet("/governance/config"); }
@@ -862,7 +862,7 @@ export async function govGetProposal(token: string, id: string): Promise<GovProp
 }
 export async function govCreateProposal(
   token: string,
-  p: { action: string; description: string; proposer?: string; unsignedTx?: any; reducedTx?: string },
+  p: { action: string; description: string; proposer?: string; params?: any; unsignedTx?: any; reducedTx?: string },
 ): Promise<GovProposal> {
   return govPost("/governance/proposals", p, token);
 }

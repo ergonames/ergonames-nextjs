@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import {
-  govAuth, govListProposals, govCreateProposal, govGetProposal, govMarkPublished, ergoPayUrl,
+  govAuth, govListProposals, govCreateProposal, govGetProposal, govMarkPublished, ergoPayUrl, getStats,
 } from "../lib/ergonames";
 import { QRCodeSVG } from "qrcode.react";
 import HexLogo from "../components/HexLogo";
@@ -29,34 +29,42 @@ function StatusPill({ status }) {
   return <span className={`px-2.5 py-0.5 rounded-full border text-[11px] font-semibold uppercase tracking-wide ${map[status] ?? map.cancelled}`}>{status}</span>;
 }
 
-// ── New-proposal form ───────────────────────────────────────────────────────
+// ── New-proposal form (structured inputs — no CLI) ──────────────────────────
+const lenLabel = (i, n) => (i === n - 1 ? `${i}+ chars` : `${i} chars`);
+
 function NewProposal({ token, actions, onCreated, onCancel }) {
   const [action, setAction] = useState(actions[0] ?? "update-pricing");
   const [description, setDescription] = useState("");
   const [proposer, setProposer] = useState("");
-  const [reducedTx, setReducedTx] = useState("");
-  const [unsignedRaw, setUnsignedRaw] = useState("");
+  const [prices, setPrices] = useState(null); // USD strings per length-index
+  const [reducedTx, setReducedTx] = useState(""); // advanced / operator
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
+  // Pre-fill the current price map when proposing a pricing change.
+  useEffect(() => {
+    if (action === "update-pricing" && prices === null) {
+      getStats().then((s) => setPrices((s?.priceMapCents ?? []).map((c) => (c / 100).toString())))
+        .catch(() => setPrices([]));
+    }
+  }, [action, prices]);
+
+  const setPrice = (i, v) => setPrices((arr) => arr.map((p, j) => (j === i ? v : p)));
+
   const submit = async () => {
     setErr("");
-    let unsignedTx;
-    if (unsignedRaw.trim()) {
-      try { unsignedTx = JSON.parse(unsignedRaw); }
-      catch { setErr("The unsigned-tx JSON isn't valid. Leave it blank, or paste the bot's --unsigned output exactly."); return; }
-      if (!Array.isArray(unsignedTx.inputs) || !Array.isArray(unsignedTx.outputs)) {
-        setErr("That JSON doesn't look like an unsigned tx (needs inputs[] and outputs[])."); return;
-      }
-    }
-    if (!reducedTx.trim() && !unsignedTx) {
-      setErr("Add the reduced transaction (for the sign-in-Minotaur QR), or an unsigned tx for review."); return;
+    let params;
+    if (action === "update-pricing") {
+      if (!prices || prices.length === 0) { setErr("Couldn't load the current prices — reopen the form and try again."); return; }
+      const cents = prices.map((p) => Math.round(parseFloat(p) * 100));
+      if (cents.some((c) => !Number.isFinite(c) || c <= 0)) { setErr("Every price must be a positive dollar amount."); return; }
+      params = { priceMapCents: cents };
     }
     setBusy(true);
     try {
       await govCreateProposal(token, {
         action, description: description.trim(), proposer: proposer.trim(),
-        reducedTx: reducedTx.trim() || undefined, unsignedTx,
+        params, reducedTx: reducedTx.trim() || undefined,
       });
       onCreated();
     } catch (e) {
@@ -70,15 +78,39 @@ function NewProposal({ token, actions, onCreated, onCancel }) {
   return (
     <div className="bg-surface border border-line rounded-3xl shadow-soft p-6 sm:p-8 animate-fade-up">
       <h2 className="text-xl text-ink font-semibold">New proposal</h2>
-      <p className="mt-1 text-muted text-sm">
-        Generate the transaction with the bot
-        (<code className="text-ergo-400">--update-pricing --unsigned --reduced</code>) and paste its <b>reduced</b> output here so the founders can scan + sign it in Minotaur.
-      </p>
+      <p className="mt-1 text-muted text-sm">Enter the change below — no command line. The signable transaction is generated from this for the founders to scan + sign in Minotaur (the on-chain 2-of-4 signing activates with the genesis contracts).</p>
 
       <label className="block mt-6 text-sm text-body font-medium">Action</label>
       <select value={action} onChange={(e) => setAction(e.target.value)} className={field}>
         {actions.map((a) => <option key={a} value={a}>{actionLabel(a)}</option>)}
       </select>
+
+      {action === "update-pricing" ? (
+        <div className="mt-5">
+          <label className="block text-sm text-body font-medium">New price by name length <span className="text-muted font-normal">(USD)</span></label>
+          {prices === null ? (
+            <p className="mt-2 text-sm text-muted animate-pulse">Loading current prices…</p>
+          ) : prices.length === 0 ? (
+            <p className="mt-2 text-sm text-red-500">Couldn&apos;t load current prices. Close and reopen the form.</p>
+          ) : (
+            <>
+              <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {prices.map((p, i) => (
+                  <label key={i} className="bg-raised border border-line rounded-2xl px-3 py-2 flex items-center gap-1.5">
+                    <span className="text-xs text-muted w-14 shrink-0">{lenLabel(i, prices.length)}</span>
+                    <span className="text-muted text-sm">$</span>
+                    <input value={p} onChange={(e) => setPrice(i, e.target.value)} inputMode="decimal"
+                      className="w-full bg-transparent text-ink text-sm focus:outline-none min-w-0" />
+                  </label>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-muted">Pre-filled with the current prices — edit only what you want to change. The last row covers that length and longer.</p>
+            </>
+          )}
+        </div>
+      ) : (
+        <p className="mt-5 text-sm text-muted bg-raised border border-line rounded-2xl px-4 py-3">Recreates the registry box identically — no parameters. (Escape-hatch / acceptance action.)</p>
+      )}
 
       <label className="block mt-5 text-sm text-body font-medium">Description <span className="text-muted font-normal">(what + why)</span></label>
       <input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500}
@@ -87,14 +119,10 @@ function NewProposal({ token, actions, onCreated, onCancel }) {
       <label className="block mt-5 text-sm text-body font-medium">Your name <span className="text-muted font-normal">(optional, for the board)</span></label>
       <input value={proposer} onChange={(e) => setProposer(e.target.value)} maxLength={60} placeholder="e.g. Adoo" className={field} />
 
-      <label className="block mt-5 text-sm text-body font-medium">Reduced transaction <span className="text-muted font-normal">(base64 — powers the sign-in-Minotaur QR)</span></label>
-      <textarea value={reducedTx} onChange={(e) => setReducedTx(e.target.value)} rows={4} spellCheck={false}
-        placeholder="paste the bot's --reduced output…" className={`${field} font-mono text-xs resize-y`} />
-
       <details className="mt-5">
-        <summary className="cursor-pointer text-sm text-ergo-400 hover:text-ergo-500 select-none">Add the unsigned-tx JSON for review (optional)</summary>
-        <textarea value={unsignedRaw} onChange={(e) => setUnsignedRaw(e.target.value)} rows={6} spellCheck={false}
-          placeholder='{"id":"…","inputs":[…],"outputs":[…]}' className={`${field} font-mono text-xs resize-y`} />
+        <summary className="cursor-pointer text-sm text-muted hover:text-ink select-none">Advanced: paste a pre-built reduced transaction</summary>
+        <textarea value={reducedTx} onChange={(e) => setReducedTx(e.target.value)} rows={4} spellCheck={false}
+          placeholder="base64 reduced tx (operator path, or once the bot auto-build is wired)…" className={`${field} font-mono text-xs resize-y`} />
       </details>
 
       {err && <p className="mt-3 text-sm text-red-500">{err}</p>}
@@ -149,6 +177,20 @@ function ProposalDetail({ token, id, onBack, onChanged, onExpired }) {
           <StatusPill status={p.status} />
         </div>
         {p.description && <p className="mt-4 text-body">{p.description}</p>}
+
+        {p.params?.priceMapCents && (
+          <div className="mt-5">
+            <h3 className="text-sm font-semibold text-body">Proposed prices <span className="text-muted font-normal">(USD by name length)</span></h3>
+            <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {p.params.priceMapCents.map((c, i) => (
+                <div key={i} className="bg-raised border border-line rounded-xl px-3 py-1.5 text-sm flex items-center justify-between gap-2">
+                  <span className="text-muted text-xs">{lenLabel(i, p.params.priceMapCents.length)}</span>
+                  <span className="text-ink">${(c / 100).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="mt-5 grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
           <Row k="Proposed by" v={p.createdBy || "team"} />
