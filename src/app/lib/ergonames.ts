@@ -804,3 +804,115 @@ function hexToBytes(hex: string): Uint8Array {
   }
   return out;
 }
+
+// ───────────────────────── Governance dashboard (team) ─────────────────────
+// Auth wall: a founder proves control of their signer address by signing a
+// server nonce with the wallet (EIP-12 sign_data); the API verifies the
+// Schnorr proof and returns a bearer token. All governance reads/writes carry
+// that token. Only the multisig founders can authenticate.
+
+// Normalize whatever sign_data returns (hex string, Uint8Array, byte array, or
+// an array-like object) into a plain hex string for the API.
+function toHex(v: any): string {
+  if (v == null) throw new Error("Wallet returned no signature.");
+  if (typeof v === "string") return v.startsWith("0x") ? v.slice(2) : v;
+  if (v instanceof Uint8Array) return [...v].map((b) => b.toString(16).padStart(2, "0")).join("");
+  if (Array.isArray(v)) return v.map((b) => (Number(b) & 0xff).toString(16).padStart(2, "0")).join("");
+  if (typeof v.proof === "string") return toHex(v.proof);
+  const vals = Object.values(v);
+  if (vals.length && vals.every((x) => typeof x === "number")) return toHex(vals);
+  throw new Error("Unexpected signature format from wallet.");
+}
+
+// Sign a message with the connected wallet and return the proof as hex.
+export async function signMessage(address: string, message: string): Promise<string> {
+  const wallet: any = (globalThis as any).__ergo ?? (typeof ergo !== "undefined" ? ergo : null);
+  if (!wallet) throw new Error("Connect your wallet first.");
+  if (typeof wallet.sign_data !== "function") {
+    throw new Error(
+      "This wallet can't sign messages (no sign_data). Update Nautilus; note some hardware wallets don't support message signing.",
+    );
+  }
+  try {
+    const proof = await withTimeout(
+      wallet.sign_data(address, new TextEncoder().encode(message)),
+      60000,
+      "Awaiting wallet signature",
+    );
+    return toHex(proof);
+  } catch (e) {
+    throw new Error(friendlyError(e));
+  }
+}
+
+async function govGet(path: string, token?: string): Promise<any> {
+  const res = await fetch(`${API_URL}${path}`, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined);
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 401) throw new Error("SESSION_EXPIRED");
+  if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status})`);
+  return body;
+}
+
+async function govPost(path: string, payload: any, token?: string): Promise<any> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(payload),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 401) throw new Error("SESSION_EXPIRED");
+  if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status})`);
+  return body;
+}
+
+export interface GovConfig { signers: string[]; threshold: number; actions: string[]; }
+export interface GovProposal {
+  id: string; action: string; description: string | null; threshold: number;
+  status: string; publishedTx: string | null; createdBy: string;
+  createdAt: number; signatureCount: number;
+}
+export interface GovProposalDetail extends Omit<GovProposal, "signatureCount"> {
+  signers: string[]; unsignedTx: any;
+  signatures: { signer: string; signedAt: number }[];
+}
+
+export async function govConfig(): Promise<GovConfig> { return govGet("/governance/config"); }
+
+// Full login: pick the wallet address that is a configured signer, sign the
+// server challenge with it, and exchange the proof for a session token.
+export async function govLogin(onStep: (s: string) => void = () => {}): Promise<{ token: string; address: string }> {
+  const cfg = await govConfig();
+  const signerSet = new Set(cfg.signers);
+  onStep("Connecting wallet…");
+  await connectWallet(onStep);
+  const wallet: any = (globalThis as any).__ergo;
+  const candidates: string[] = [];
+  const collect = async (fn: string) => {
+    try { const r = await wallet[fn]?.(); if (Array.isArray(r)) candidates.push(...r); else if (typeof r === "string") candidates.push(r); } catch {}
+  };
+  await collect("get_change_address");
+  await collect("get_used_addresses");
+  await collect("get_unused_addresses");
+  const address = candidates.find((a) => signerSet.has(a));
+  if (!address) {
+    throw new Error("This wallet doesn't hold a governance signer key. Connect the wallet for one of the founder addresses.");
+  }
+  onStep("Sign the challenge in your wallet to prove the key…");
+  const { nonce } = await govGet(`/governance/challenge?address=${encodeURIComponent(address)}`);
+  const proof = await signMessage(address, nonce);
+  const { token } = await govPost("/governance/auth", { address, proof });
+  return { token, address };
+}
+
+export async function govListProposals(token: string): Promise<{ threshold: number; signers: string[]; proposals: GovProposal[] }> {
+  return govGet("/governance/proposals", token);
+}
+export async function govGetProposal(token: string, id: string): Promise<GovProposalDetail> {
+  return govGet(`/governance/proposals/${encodeURIComponent(id)}`, token);
+}
+export async function govCreateProposal(
+  token: string,
+  p: { action: string; description: string; unsignedTx: any },
+): Promise<GovProposal> {
+  return govPost("/governance/proposals", p, token);
+}
