@@ -28,6 +28,7 @@
     "lenis": "^1.3.23",
     "localstorage-polyfill": "^1.0.1",
     "next": "14.0.3",
+    "qrcode.react": "^4.2.0",
     "react": "^18",
     "react-bootstrap": "^2.7.2",
     "react-copy-to-clipboard": "^5.1.0",

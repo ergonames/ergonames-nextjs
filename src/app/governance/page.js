@@ -1,22 +1,24 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import {
-  govLogin, govListProposals, govCreateProposal, govGetProposal,
+  govAuth, govListProposals, govCreateProposal, govGetProposal, govMarkPublished, ergoPayUrl,
 } from "../lib/ergonames";
+import { QRCodeSVG } from "qrcode.react";
 import HexLogo from "../components/HexLogo";
 import ThemeToggle from "../components/ThemeToggle";
 import Link from "next/link";
 
-// Team governance dashboard. Gated behind a wallet-signature auth wall: only
-// the multisig founders (the configured signer set) can sign in. Phase 1/2 —
-// authenticate, browse + create proposals. Signing a proposal to threshold and
-// publishing it on-chain arrive with the genesis contracts (Phase 3).
+// Team governance dashboard. Access is gated by a shared team passphrase (the
+// founder keys live in Minotaur, which can't sign a web login). The actual
+// 2-of-4 signing happens in Minotaur: each proposal shows an ErgoPay QR the
+// founders scan to load + sign + broadcast the governance transaction.
 
 const SESSION_KEY = "ergonames_gov_session";
 const short = (a) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "");
 const ACTION_LABEL = { "update-pricing": "Update pricing", "migrate-registry": "Migrate registry" };
 const actionLabel = (a) => ACTION_LABEL[a] ?? a;
 const fmtDate = (ms) => new Date(Number(ms)).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+const txLinkOf = (id) => `https://explorer.ergoplatform.com/transactions/${id}`;
 
 function StatusPill({ status }) {
   const map = {
@@ -27,42 +29,35 @@ function StatusPill({ status }) {
   return <span className={`px-2.5 py-0.5 rounded-full border text-[11px] font-semibold uppercase tracking-wide ${map[status] ?? map.cancelled}`}>{status}</span>;
 }
 
-function Progress({ count, threshold }) {
-  const pct = Math.min(100, (count / Math.max(1, threshold)) * 100);
-  return (
-    <div className="flex items-center gap-2 min-w-[120px]">
-      <div className="flex-1 h-1.5 rounded-full bg-line overflow-hidden">
-        <div className="h-full bg-ergo-500 transition-all" style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-xs text-muted tabular-nums">{count}/{threshold}</span>
-    </div>
-  );
-}
-
 // ── New-proposal form ───────────────────────────────────────────────────────
 function NewProposal({ token, actions, onCreated, onCancel }) {
   const [action, setAction] = useState(actions[0] ?? "update-pricing");
   const [description, setDescription] = useState("");
-  const [raw, setRaw] = useState("");
+  const [proposer, setProposer] = useState("");
+  const [reducedTx, setReducedTx] = useState("");
+  const [unsignedRaw, setUnsignedRaw] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
   const submit = async () => {
     setErr("");
     let unsignedTx;
-    try {
-      unsignedTx = JSON.parse(raw);
-    } catch {
-      setErr("The unsigned transaction isn't valid JSON. Paste the bot's --unsigned output exactly.");
-      return;
+    if (unsignedRaw.trim()) {
+      try { unsignedTx = JSON.parse(unsignedRaw); }
+      catch { setErr("The unsigned-tx JSON isn't valid. Leave it blank, or paste the bot's --unsigned output exactly."); return; }
+      if (!Array.isArray(unsignedTx.inputs) || !Array.isArray(unsignedTx.outputs)) {
+        setErr("That JSON doesn't look like an unsigned tx (needs inputs[] and outputs[])."); return;
+      }
     }
-    if (!unsignedTx || !Array.isArray(unsignedTx.inputs) || !Array.isArray(unsignedTx.outputs)) {
-      setErr("That JSON doesn't look like an unsigned tx (needs inputs[] and outputs[]).");
-      return;
+    if (!reducedTx.trim() && !unsignedTx) {
+      setErr("Add the reduced transaction (for the sign-in-Minotaur QR), or an unsigned tx for review."); return;
     }
     setBusy(true);
     try {
-      await govCreateProposal(token, { action, description: description.trim(), unsignedTx });
+      await govCreateProposal(token, {
+        action, description: description.trim(), proposer: proposer.trim(),
+        reducedTx: reducedTx.trim() || undefined, unsignedTx,
+      });
       onCreated();
     } catch (e) {
       setErr(String(e.message) === "SESSION_EXPIRED" ? "Your session expired — sign in again." : (e.message ?? String(e)));
@@ -70,67 +65,77 @@ function NewProposal({ token, actions, onCreated, onCancel }) {
     setBusy(false);
   };
 
+  const field = "mt-2 w-full bg-raised border border-line rounded-2xl px-4 py-3 text-ink placeholder:text-muted focus:outline-none focus:border-ergo-500";
+
   return (
     <div className="bg-surface border border-line rounded-3xl shadow-soft p-6 sm:p-8 animate-fade-up">
       <h2 className="text-xl text-ink font-semibold">New proposal</h2>
       <p className="mt-1 text-muted text-sm">
-        Generate the unsigned transaction with the bot
-        (<code className="text-ergo-400">--update-pricing --unsigned --out p.json</code>) and paste it here for the signers to review.
+        Generate the transaction with the bot
+        (<code className="text-ergo-400">--update-pricing --unsigned --reduced</code>) and paste its <b>reduced</b> output here so the founders can scan + sign it in Minotaur.
       </p>
 
       <label className="block mt-6 text-sm text-body font-medium">Action</label>
-      <select value={action} onChange={(e) => setAction(e.target.value)}
-        className="mt-2 w-full bg-raised border border-line rounded-2xl px-4 py-3 text-ink focus:outline-none focus:border-ergo-500">
+      <select value={action} onChange={(e) => setAction(e.target.value)} className={field}>
         {actions.map((a) => <option key={a} value={a}>{actionLabel(a)}</option>)}
       </select>
 
-      <label className="block mt-5 text-sm text-body font-medium">Description <span className="text-muted font-normal">(what + why, for the other signers)</span></label>
+      <label className="block mt-5 text-sm text-body font-medium">Description <span className="text-muted font-normal">(what + why)</span></label>
       <input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500}
-        placeholder="e.g. Lower 4-letter names to $8 per the June pricing vote"
-        className="mt-2 w-full bg-raised border border-line rounded-2xl px-4 py-3 text-ink placeholder:text-muted focus:outline-none focus:border-ergo-500" />
+        placeholder="e.g. Lower 4-letter names to $8 per the June pricing vote" className={field} />
 
-      <label className="block mt-5 text-sm text-body font-medium">Unsigned transaction (JSON)</label>
-      <textarea value={raw} onChange={(e) => setRaw(e.target.value)} rows={8} spellCheck={false}
-        placeholder='{"id":"…","inputs":[…],"dataInputs":[],"outputs":[…]}'
-        className="mt-2 w-full bg-raised border border-line rounded-2xl px-4 py-3 text-ink font-mono text-xs placeholder:text-muted focus:outline-none focus:border-ergo-500 resize-y" />
+      <label className="block mt-5 text-sm text-body font-medium">Your name <span className="text-muted font-normal">(optional, for the board)</span></label>
+      <input value={proposer} onChange={(e) => setProposer(e.target.value)} maxLength={60} placeholder="e.g. Adoo" className={field} />
+
+      <label className="block mt-5 text-sm text-body font-medium">Reduced transaction <span className="text-muted font-normal">(base64 — powers the sign-in-Minotaur QR)</span></label>
+      <textarea value={reducedTx} onChange={(e) => setReducedTx(e.target.value)} rows={4} spellCheck={false}
+        placeholder="paste the bot's --reduced output…" className={`${field} font-mono text-xs resize-y`} />
+
+      <details className="mt-5">
+        <summary className="cursor-pointer text-sm text-ergo-400 hover:text-ergo-500 select-none">Add the unsigned-tx JSON for review (optional)</summary>
+        <textarea value={unsignedRaw} onChange={(e) => setUnsignedRaw(e.target.value)} rows={6} spellCheck={false}
+          placeholder='{"id":"…","inputs":[…],"outputs":[…]}' className={`${field} font-mono text-xs resize-y`} />
+      </details>
 
       {err && <p className="mt-3 text-sm text-red-500">{err}</p>}
 
       <div className="mt-6 flex gap-3">
-        <button onClick={submit} disabled={busy || !raw.trim()}
-          className="px-5 py-3 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition disabled:opacity-50">
+        <button onClick={submit} disabled={busy} className="px-5 py-3 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition disabled:opacity-50">
           {busy ? "Creating…" : "Create proposal"}
         </button>
-        <button onClick={onCancel} disabled={busy}
-          className="px-5 py-3 rounded-2xl border border-line text-body hover:text-ink transition disabled:opacity-50">Cancel</button>
+        <button onClick={onCancel} disabled={busy} className="px-5 py-3 rounded-2xl border border-line text-body hover:text-ink transition disabled:opacity-50">Cancel</button>
       </div>
     </div>
   );
 }
 
 // ── Proposal detail ─────────────────────────────────────────────────────────
-function ProposalDetail({ token, id, signerAddress, onBack, onExpired }) {
+function ProposalDetail({ token, id, onBack, onChanged, onExpired }) {
   const [p, setP] = useState(null);
   const [err, setErr] = useState("");
+  const [txId, setTxId] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    let live = true;
+  const load = useCallback(() => {
     govGetProposal(token, id)
-      .then((d) => live && setP(d))
-      .catch((e) => {
-        if (!live) return;
-        if (String(e.message) === "SESSION_EXPIRED") onExpired();
-        else setErr(e.message ?? String(e));
-      });
-    return () => { live = false; };
+      .then(setP)
+      .catch((e) => { if (String(e.message) === "SESSION_EXPIRED") onExpired(); else setErr(e.message ?? String(e)); });
   }, [token, id, onExpired]);
+  useEffect(() => { load(); }, [load]);
+
+  const markPublished = async () => {
+    setErr(""); setBusy(true);
+    try { await govMarkPublished(token, id, txId.trim()); setTxId(""); load(); onChanged?.(); }
+    catch (e) { setErr(String(e.message) === "SESSION_EXPIRED" ? "Your session expired — sign in again." : (e.message ?? String(e))); }
+    setBusy(false);
+  };
 
   if (err) return <div className="text-red-500 text-sm">{err}</div>;
   if (!p) return <div className="text-muted text-sm animate-pulse">Loading proposal…</div>;
 
-  const signedSet = new Set((p.signatures ?? []).map((s) => s.signer));
   const inputs = p.unsignedTx?.inputs?.length ?? 0;
   const outputs = p.unsignedTx?.outputs?.length ?? 0;
+  const payUrl = ergoPayUrl(p.id);
 
   return (
     <div className="animate-fade-up">
@@ -146,57 +151,70 @@ function ProposalDetail({ token, id, signerAddress, onBack, onExpired }) {
         {p.description && <p className="mt-4 text-body">{p.description}</p>}
 
         <div className="mt-5 grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-          <Row k="Proposed by" v={short(p.createdBy)} mono />
+          <Row k="Proposed by" v={p.createdBy || "team"} />
           <Row k="Created" v={fmtDate(p.createdAt)} />
-          <Row k="Signatures" v={`${p.signatures?.length ?? 0} of ${p.threshold} required`} />
-          <Row k="Transaction" v={`${inputs} input${inputs === 1 ? "" : "s"}, ${outputs} output${outputs === 1 ? "" : "s"}`} />
+          <Row k="Approval" v={`${p.threshold}-of-${p.signers?.length ?? 0} multisig`} />
+          {(inputs || outputs) ? <Row k="Transaction" v={`${inputs} in, ${outputs} out`} /> : null}
         </div>
 
-        {/* Signer roster — who has signed */}
-        <div className="mt-6">
-          <h3 className="text-sm font-semibold text-body">Signers</h3>
-          <div className="mt-2 grid sm:grid-cols-2 gap-2">
-            {(p.signers ?? []).map((s) => {
-              const signed = signedSet.has(s);
-              const you = s === signerAddress;
-              return (
-                <div key={s} className="flex items-center justify-between gap-2 bg-raised border border-line rounded-2xl px-4 py-2.5">
-                  <span className="font-mono text-sm text-ink truncate">{short(s)}{you && <span className="ml-1.5 text-ergo-400 text-xs">you</span>}</span>
-                  <span className={`text-xs font-semibold ${signed ? "text-mint" : "text-muted"}`}>{signed ? "✓ signed" : "pending"}</span>
+        {/* Sign-in-Minotaur QR (the real 2-of-4 signing) */}
+        {p.status !== "published" && (
+          <div className="mt-6 bg-raised border border-line rounded-2xl p-5">
+            <h3 className="text-sm font-semibold text-body">Sign in Minotaur</h3>
+            {p.hasReduced ? (
+              <div className="mt-3 flex flex-col sm:flex-row gap-5 items-center sm:items-start">
+                <div className="bg-white p-3 rounded-xl shrink-0">
+                  <QRCodeSVG value={payUrl} size={180} bgColor="#ffffff" fgColor="#0B0D16" level="M" />
                 </div>
-              );
-            })}
+                <div className="text-sm text-muted">
+                  <p>Open <b className="text-ink">Minotaur → scan</b> and point it at this code. It loads the governance transaction; any <b className="text-ink">{p.threshold} of {p.signers?.length}</b> founders sign + broadcast it.</p>
+                  <p className="mt-3 text-xs break-all">
+                    <span className="text-body">Or paste this into Minotaur&apos;s scanner:</span><br />
+                    <code className="text-ergo-400">{payUrl}</code>
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-muted">No signable transaction is attached yet. Add the bot&apos;s <code className="text-ergo-400">--reduced</code> output to this proposal to generate the QR.</p>
+            )}
           </div>
-        </div>
+        )}
 
-        {/* Raw unsigned tx, for signers to review before signing */}
-        <details className="mt-6 group">
-          <summary className="cursor-pointer text-sm text-ergo-400 hover:text-ergo-500 select-none">View raw unsigned transaction</summary>
-          <pre className="mt-3 bg-raised border border-line rounded-2xl p-4 text-[11px] text-body overflow-auto max-h-80">{JSON.stringify(p.unsignedTx, null, 2)}</pre>
-        </details>
-
-        {/* Phase 3 — signing/publish lands with the genesis contracts */}
+        {/* Mark published once broadcast from Minotaur */}
         {p.status === "published" ? (
           <div className="mt-6 p-4 rounded-2xl bg-mint/[0.08] border border-mint/30 text-sm text-body">
-            Published on-chain{p.publishedTx ? <> — <a className="text-ergo-500 underline" target="_blank" rel="noreferrer" href={`https://explorer.ergoplatform.com/transactions/${p.publishedTx}`}>view transaction ↗</a></> : null}.
+            Published on-chain{p.publishedTx ? <> — <a className="text-ergo-500 underline" target="_blank" rel="noreferrer" href={txLinkOf(p.publishedTx)}>view transaction ↗</a></> : null}.
           </div>
         ) : (
-          <div className="mt-6 p-4 rounded-2xl bg-raised border border-line text-sm text-muted">
-            <span className="text-body font-medium">Signing &amp; publishing arrive with the genesis contracts.</span> Once the
-            2-of-{p.threshold + 0} multisig is live in the registry, each signer will add their partial signature here, and the
-            dashboard assembles + broadcasts the transaction when the threshold is met.
+          <div className="mt-6">
+            <h3 className="text-sm font-semibold text-body">Already broadcast it?</h3>
+            <div className="mt-2 flex flex-col sm:flex-row gap-2">
+              <input value={txId} onChange={(e) => setTxId(e.target.value)} placeholder="paste the transaction id from Minotaur"
+                className="flex-1 bg-raised border border-line rounded-2xl px-4 py-2.5 text-ink font-mono text-xs placeholder:text-muted focus:outline-none focus:border-ergo-500" />
+              <button onClick={markPublished} disabled={busy || !/^[0-9a-fA-F]{64}$/.test(txId.trim())}
+                className="px-4 py-2.5 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold text-sm transition disabled:opacity-50 shrink-0">
+                {busy ? "Saving…" : "Mark published"}
+              </button>
+            </div>
           </div>
+        )}
+
+        {p.unsignedTx && (
+          <details className="mt-6">
+            <summary className="cursor-pointer text-sm text-ergo-400 hover:text-ergo-500 select-none">View raw transaction</summary>
+            <pre className="mt-3 bg-raised border border-line rounded-2xl p-4 text-[11px] text-body overflow-auto max-h-80">{JSON.stringify(p.unsignedTx, null, 2)}</pre>
+          </details>
         )}
       </div>
     </div>
   );
 }
 
-function Row({ k, v, mono }) {
+function Row({ k, v }) {
   return (
     <div className="flex items-center justify-between gap-3 py-1.5 border-b border-line/60 last:border-0">
       <span className="text-muted">{k}</span>
-      <span className={`text-ink text-right ${mono ? "font-mono" : ""}`}>{v}</span>
+      <span className="text-ink text-right">{v}</span>
     </div>
   );
 }
@@ -204,28 +222,28 @@ function Row({ k, v, mono }) {
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function GovernancePage() {
   const [ready, setReady] = useState(false);
-  const [session, setSession] = useState(null); // { token, address }
+  const [token, setToken] = useState(null);
+  const [passphrase, setPassphrase] = useState("");
   const [proposals, setProposals] = useState([]);
   const [meta, setMeta] = useState({ threshold: 2, signers: [], actions: ["update-pricing", "migrate-registry"] });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [authMsg, setAuthMsg] = useState("");
   const [view, setView] = useState("list"); // "list" | "new" | <proposalId>
 
   useEffect(() => {
-    try { const s = JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); if (s?.token) setSession(s); } catch {}
+    try { const t = localStorage.getItem(SESSION_KEY); if (t) setToken(t); } catch {}
     setReady(true);
   }, []);
 
   const logout = useCallback((msg = "") => {
-    setSession(null); setProposals([]); setView("list"); setErr(msg);
+    setToken(null); setProposals([]); setView("list"); setErr(msg); setPassphrase("");
     try { localStorage.removeItem(SESSION_KEY); } catch {}
   }, []);
 
-  const loadProposals = useCallback(async (token) => {
+  const loadProposals = useCallback(async (t) => {
     setBusy(true); setErr("");
     try {
-      const r = await govListProposals(token);
+      const r = await govListProposals(t);
       setProposals(r.proposals);
       setMeta((m) => ({ ...m, threshold: r.threshold, signers: r.signers }));
     } catch (e) {
@@ -235,16 +253,19 @@ export default function GovernancePage() {
     setBusy(false);
   }, [logout]);
 
-  useEffect(() => { if (session?.token) loadProposals(session.token); }, [session, loadProposals]);
+  useEffect(() => { if (token) loadProposals(token); }, [token, loadProposals]);
 
-  const authenticate = async () => {
-    setErr(""); setAuthMsg(""); setBusy(true);
+  const authenticate = async (e) => {
+    e?.preventDefault?.();
+    setErr(""); setBusy(true);
     try {
-      const s = await govLogin(setAuthMsg);
-      setSession(s);
-      try { localStorage.setItem(SESSION_KEY, JSON.stringify(s)); } catch {}
-    } catch (e) { setErr(e.message ?? String(e)); }
-    setBusy(false); setAuthMsg("");
+      const { token: t } = await govAuth(passphrase);
+      setToken(t);
+      try { localStorage.setItem(SESSION_KEY, t); } catch {}
+    } catch (e) {
+      setErr(String(e.message).includes("incorrect") ? "Incorrect passphrase." : (e.message ?? String(e)));
+    }
+    setBusy(false);
   };
 
   return (
@@ -260,36 +281,35 @@ export default function GovernancePage() {
             <Link href="/mint" className="text-sm text-white/70 hover:text-white transition hidden sm:block">Register</Link>
             <Link href="/stats" className="text-sm text-white/70 hover:text-white transition hidden sm:block">Stats</Link>
             <ThemeToggle />
-            {session
-              ? <button onClick={() => logout()} className="flex items-center gap-2.5 px-4 py-2 rounded-full border border-white/20 text-sm hover:border-white/40 transition"><span className="h-2 w-2 rounded-full bg-mint" /> {short(session.address)} · Sign out</button>
-              : null}
+            {token ? <button onClick={() => logout()} className="flex items-center gap-2.5 px-4 py-2 rounded-full border border-white/20 text-sm hover:border-white/40 transition"><span className="h-2 w-2 rounded-full bg-mint" /> Team · Sign out</button> : null}
           </div>
         </div>
       </header>
 
       <main className="flex-1 w-full max-w-3xl mx-auto px-5 sm:px-8 pt-12 sm:pt-16 pb-24">
-        {!ready ? null : !session ? (
-          // ── Auth gate ──
-          <div className="max-w-md mx-auto text-center bg-surface border border-line rounded-3xl shadow-soft p-8 animate-fade-up">
+        {!ready ? null : !token ? (
+          // ── Passphrase gate ──
+          <form onSubmit={authenticate} className="max-w-md mx-auto text-center bg-surface border border-line rounded-3xl shadow-soft p-8 animate-fade-up">
             <div className="mx-auto w-14 h-14 rounded-2xl bg-ergo-500/10 flex items-center justify-center"><HexLogo size={30} /></div>
             <h1 className="mt-5 text-2xl text-ink font-semibold">Team governance</h1>
-            <p className="mt-2 text-muted text-sm">
-              Restricted to the multisig founders. Authenticate by signing a one-time challenge
-              with your founder wallet — no funds move, it only proves you hold a signer key.
-            </p>
-            <button onClick={authenticate} disabled={busy}
-              className="mt-6 w-full py-3.5 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition disabled:opacity-50">
-              {busy ? (authMsg || "Authenticating…") : "Authenticate with wallet"}
+            <p className="mt-2 text-muted text-sm">Enter the shared team passphrase to access the governance board.</p>
+            <input type="password" value={passphrase} onChange={(e) => setPassphrase(e.target.value)} autoFocus
+              placeholder="Team passphrase"
+              className="mt-6 w-full bg-raised border border-line rounded-2xl px-4 py-3 text-ink text-center placeholder:text-muted focus:outline-none focus:border-ergo-500" />
+            <button type="submit" disabled={busy || !passphrase}
+              className="mt-4 w-full py-3.5 rounded-2xl bg-ergo-500 hover:bg-ergo-600 text-white font-semibold transition disabled:opacity-50">
+              {busy ? "Checking…" : "Enter"}
             </button>
             {err && <p className="mt-4 text-sm text-red-500">{err}</p>}
-          </div>
+          </form>
         ) : view === "new" ? (
-          <NewProposal token={session.token} actions={meta.actions}
-            onCreated={() => { setView("list"); loadProposals(session.token); }}
+          <NewProposal token={token} actions={meta.actions}
+            onCreated={() => { setView("list"); loadProposals(token); }}
             onCancel={() => setView("list")} />
         ) : view !== "list" ? (
-          <ProposalDetail token={session.token} id={view} signerAddress={session.address}
-            onBack={() => setView("list")} onExpired={() => logout("Your session expired — sign in again.")} />
+          <ProposalDetail token={token} id={view}
+            onBack={() => setView("list")} onChanged={() => loadProposals(token)}
+            onExpired={() => logout("Your session expired — sign in again.")} />
         ) : (
           // ── Proposal list ──
           <>
@@ -297,11 +317,10 @@ export default function GovernancePage() {
               <div>
                 <h1 className="text-3xl sm:text-4xl text-ink font-semibold tracking-tight animate-fade-up">Proposals</h1>
                 <p className="mt-2 text-muted animate-fade-up" style={{ animationDelay: "60ms" }}>
-                  {meta.threshold}-of-{meta.signers.length} multisig · any {meta.threshold} signers pass a proposal.
+                  {meta.threshold}-of-{meta.signers.length} multisig · sign in Minotaur, the board tracks it.
                 </p>
               </div>
-              <button onClick={() => setView("new")}
-                className="px-5 py-2.5 rounded-full bg-ergo-500 hover:bg-ergo-600 text-white font-semibold text-sm transition">+ New proposal</button>
+              <button onClick={() => setView("new")} className="px-5 py-2.5 rounded-full bg-ergo-500 hover:bg-ergo-600 text-white font-semibold text-sm transition">+ New proposal</button>
             </div>
 
             {err && <div className="mt-6 p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-500 text-sm">{err}</div>}
@@ -311,7 +330,7 @@ export default function GovernancePage() {
               {!busy && proposals.length === 0 && (
                 <div className="bg-surface border border-line rounded-3xl shadow-soft p-8 text-center">
                   <p className="text-ink font-medium">No proposals yet</p>
-                  <p className="mt-1 text-muted text-sm">Create one from a bot <code className="text-ergo-400">--unsigned</code> transaction to get started.</p>
+                  <p className="mt-1 text-muted text-sm">Create one from a bot transaction to get started.</p>
                 </div>
               )}
               {proposals.map((p) => (
@@ -321,11 +340,12 @@ export default function GovernancePage() {
                     <div className="flex items-center gap-2.5">
                       <span className="text-ink font-semibold">{actionLabel(p.action)}</span>
                       <StatusPill status={p.status} />
+                      {p.hasReduced && p.status !== "published" && <span className="text-[11px] text-mint" title="Ready to sign in Minotaur">● signable</span>}
                     </div>
                     <p className="mt-1 text-muted text-sm truncate max-w-md">{p.description || "No description"}</p>
-                    <p className="mt-1 text-muted text-xs">by {short(p.createdBy)} · {fmtDate(p.createdAt)}</p>
+                    <p className="mt-1 text-muted text-xs">by {p.createdBy || "team"} · {fmtDate(p.createdAt)}</p>
                   </div>
-                  <Progress count={p.signatureCount} threshold={p.threshold} />
+                  <span className="text-muted text-sm">→</span>
                 </button>
               ))}
             </div>
