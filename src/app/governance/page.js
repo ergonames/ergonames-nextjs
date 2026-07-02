@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import {
-  govAuth, govListProposals, govCreateProposal, govGetProposal, govMarkPublished, ergoPayUrl, getStats,
+  govAuth, govListProposals, govCreateProposal, govGetProposal, govMarkPublished, govRebuild, ergoPayUrl, getStats,
 } from "../lib/ergonames";
 import { QRCodeSVG } from "qrcode.react";
 import HexLogo from "../components/HexLogo";
@@ -158,6 +158,16 @@ function ProposalDetail({ token, id, onBack, onChanged, onExpired }) {
     setBusy(false);
   };
 
+  // Rebuild the reduced tx against the current registry box. A mint spends +
+  // recreates that box, invalidating the stored tx; refresh before signing so
+  // all cosigners scan the same, current transaction.
+  const refreshTx = async () => {
+    setErr(""); setBusy(true);
+    try { await govRebuild(token, id); load(); }
+    catch (e) { setErr(String(e.message) === "SESSION_EXPIRED" ? "Your session expired — sign in again." : (e.message ?? String(e))); }
+    setBusy(false);
+  };
+
   if (err) return <div className="text-red-500 text-sm">{err}</div>;
   if (!p) return <div className="text-muted text-sm animate-pulse">Loading proposal…</div>;
 
@@ -214,6 +224,11 @@ function ProposalDetail({ token, id, onBack, onChanged, onExpired }) {
                     <span className="text-body">Or paste this into Minotaur&apos;s scanner:</span><br />
                     <code className="text-ergo-400">{payUrl}</code>
                   </p>
+                  <button onClick={refreshTx} disabled={busy}
+                    className="mt-3 text-xs text-ergo-400 hover:text-ergo-500 underline disabled:opacity-50">
+                    {busy ? "Refreshing…" : "Refresh signing tx"}
+                  </button>
+                  <p className="mt-1 text-[11px] text-muted">If Minotaur rejects the tx as already-spent, a mint has since updated the registry — refresh, then re-scan.</p>
                 </div>
               </div>
             ) : (
