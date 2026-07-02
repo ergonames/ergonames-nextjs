@@ -48,6 +48,13 @@ const EXPECTED_PROXY_ADDRESS =
 // under 1 ERG; this bounds a lying bot from inflating the spend even if an
 // address somehow matched. 10 ERG headroom for premium short names.
 const MAX_PROXY_VALUE = 10_000_000_000n;
+// The other two user-signed legs are also taken verbatim from the bot: the
+// commit box value == txOperatorFee (the operator payout at register) and the
+// miner fee (paid on BOTH the commit and proxy txs). Bound them too, so a lying
+// or MITM'd bot cannot inflate the skim even if the pinned addresses matched.
+// Real values are ~0.001–0.002 ERG; these ceilings are generous but abuse-tight.
+const MAX_OPERATOR_FEE = 100_000_000n; // 0.1 ERG
+const MAX_MINER_FEE = 20_000_000n; // 0.02 ERG
 
 declare const ergo: any;
 declare const ergoConnector: any;
@@ -490,6 +497,91 @@ async function botPost(path: string, body: any): Promise<any> {
   return res.json();
 }
 
+// ── Durable /submit ─────────────────────────────────────────────────────────
+// The reveal payload (incl. the secret) exists only client-side until /submit
+// hands it to the bot. If /submit fails AFTER the commit + proxy txs already
+// broadcast, the secret would be lost and the user could only refund + retry.
+// So persist the payload before submitting, retry with backoff, and expose a
+// resume path. /submit is idempotent — the bot 409s a name it already holds.
+const PENDING_SUBMIT_PREFIX = "ergonames:pending-submit:";
+
+function persistPendingSubmit(name: string, payload: any): void {
+  try {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      PENDING_SUBMIT_PREFIX + name,
+      JSON.stringify({ payload, savedAt: Date.now() }),
+    );
+  } catch { /* private mode / quota — best-effort durability */ }
+}
+
+function clearPendingSubmit(name: string): void {
+  try {
+    if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_SUBMIT_PREFIX + name);
+  } catch { /* ignore */ }
+}
+
+// 200 → "queued"; 409 → "already" (the bot already accepted this name — also a
+// terminal success); anything else throws (transient/other, worth retrying).
+async function botSubmitOnce(payload: any): Promise<"queued" | "already"> {
+  const res = await fetch(`${BOT_URL}/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${BOT_TOKEN}` },
+    body: JSON.stringify(payload),
+  });
+  if (res.ok) return "queued";
+  if (res.status === 409) return "already";
+  throw new Error(`submit ${res.status}: ${(await res.text()).slice(0, 200)}`);
+}
+
+async function submitToBotWithRetry(
+  name: string,
+  payload: any,
+  onProgress: (m: string) => void,
+): Promise<void> {
+  const delays = [0, 1500, 4000, 8000];
+  for (let i = 0; i < delays.length; i++) {
+    if (delays[i]) await new Promise((r) => setTimeout(r, delays[i]));
+    try {
+      await botSubmitOnce(payload);
+      clearPendingSubmit(name);
+      return;
+    } catch {
+      if (i < delays.length - 1) onProgress(`Queueing with the registration bot… (retry ${i + 1})`);
+    }
+  }
+  // Retries exhausted — the payload stays saved so it can be resumed later.
+  throw new Error(
+    "Your transactions were sent, but queueing with the registration bot didn't go " +
+      "through. Your registration is saved and will finish automatically when you " +
+      "reopen this site — nothing was lost. " +
+      `(commit ${String(payload.commitTxId).slice(0, 10)}…)`,
+  );
+}
+
+// Re-POST any registrations whose /submit never completed (tab closed, or the
+// bot was briefly unreachable after the on-chain txs broadcast). Safe to call on
+// app load; idempotent via the bot's 409 dup guard. Returns the count resumed.
+export async function resumeStuckSubmits(): Promise<number> {
+  if (typeof window === "undefined") return 0;
+  const keys: string[] = [];
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const k = window.localStorage.key(i);
+    if (k && k.startsWith(PENDING_SUBMIT_PREFIX)) keys.push(k);
+  }
+  let resumed = 0;
+  for (const key of keys) {
+    try {
+      const entry = JSON.parse(window.localStorage.getItem(key) ?? "null");
+      if (!entry?.payload) { window.localStorage.removeItem(key); continue; }
+      await botSubmitOnce(entry.payload);
+      window.localStorage.removeItem(key);
+      resumed++;
+    } catch { /* transient — leave it for the next attempt */ }
+  }
+  return resumed;
+}
+
 /**
  * Turn any thrown value into a human-readable string. Wallet / dApp-connector
  * errors (Nautilus, EIP-12) reject with PLAIN OBJECTS like `{ code, info }`
@@ -655,6 +747,12 @@ export async function mintErgoName(
   if (BigInt(p.proxyValue) > MAX_PROXY_VALUE || BigInt(p.proxyValue) <= 0n) {
     throw new Error("Registration aborted: the quoted amount is out of range. Nothing was signed.");
   }
+  if (
+    BigInt(p.txOperatorFee) > MAX_OPERATOR_FEE || BigInt(p.txOperatorFee) <= 0n ||
+    BigInt(p.minerFee) > MAX_MINER_FEE || BigInt(p.minerFee) <= 0n
+  ) {
+    throw new Error("Registration aborted: a quoted fee is out of range. For your safety nothing was signed.");
+  }
 
   // Funds preflight. An empty/underfunded wallet makes Nautilus's get_utxos()
   // hang — which used to surface as a misleading "Reading wallet boxes timed
@@ -790,8 +888,13 @@ export async function mintErgoName(
   }
 
   // ----- Hand the reveal payload to the bot -----
+  // Persist the full payload (incl. the reveal secret) BEFORE submitting: if
+  // /submit fails transiently now that the on-chain txs have broadcast, the
+  // secret must survive so the registration can be resumed rather than stranded.
+  const submitPayload = { ...pending, commitTxId, proxyBoxId, proxyTxId };
+  persistPendingSubmit(name, submitPayload);
   onProgress("Queueing with the registration bot…");
-  await botPost("/submit", { ...pending, commitTxId, proxyBoxId, proxyTxId });
+  await submitToBotWithRetry(name, submitPayload, onProgress);
 
   onProgress("Submitted! The bot will complete your registration shortly.");
   return { commitTxId, proxyTxId };
@@ -868,4 +971,12 @@ export async function govCreateProposal(
 }
 export async function govMarkPublished(token: string, id: string, txId: string): Promise<{ id: string; status: string; publishedTx: string }> {
   return govPost(`/governance/proposals/${encodeURIComponent(id)}/published`, { txId }, token);
+}
+
+// Rebuild a proposal's reduced tx against the CURRENT registry box. A mint may
+// have spent + recreated that box since the proposal was created, invalidating
+// the stored tx; refresh it before signing so all cosigners scan the same,
+// current transaction.
+export async function govRebuild(token: string, id: string): Promise<{ id: string; hasReduced: boolean }> {
+  return govPost(`/governance/proposals/${encodeURIComponent(id)}/rebuild`, {}, token);
 }

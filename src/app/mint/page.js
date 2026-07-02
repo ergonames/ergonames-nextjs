@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { resolveName, mintErgoName, connectWallet, getStatus, txLink, refundStuckMint, getQuote, getReservedStatus, applyForVerification, errMsg } from "../lib/ergonames";
+import { resolveName, mintErgoName, connectWallet, getStatus, txLink, refundStuckMint, getQuote, getReservedStatus, applyForVerification, errMsg, resumeStuckSubmits } from "../lib/ergonames";
 import HexLogo from "../components/HexLogo";
 import NftCard, { ART_BACKGROUNDS, ART_ACCENTS, ART_HEXAGONS } from "../components/NftCard";
 import ThemeToggle from "../components/ThemeToggle";
@@ -82,6 +82,11 @@ export default function MintPage() {
     }, 500); return () => clearInterval(id);
   }, []);
 
+  // Resume any registration whose /submit didn't complete on a previous visit
+  // (tab closed / bot briefly down after the on-chain txs broadcast). Idempotent
+  // via the bot's dup guard; best-effort, never blocks the page.
+  useEffect(() => { resumeStuckSubmits().catch(() => {}); }, []);
+
   // Prefill from the landing-page search (/mint?name=foo) AND run the search
   // automatically — the landing hero's whole job is to hand off a query, so
   // arriving here should show results, not require a second click. Pass the
@@ -90,7 +95,7 @@ export default function MintPage() {
   // avoid a Suspense boundary.
   useEffect(() => {
     const v = new URLSearchParams(window.location.search).get("name");
-    if (v && /^[a-zA-Z0-9_~]{1,26}$/.test(v)) {
+    if (v && /^[a-zA-Z0-9_~]{1,21}$/.test(v)) {
       const stripped = v.replace(/^~/, "");
       setName(stripped);
       check(stripped);
@@ -106,7 +111,7 @@ export default function MintPage() {
     // `override` is a string only on the auto-search path; onClick passes a
     // SyntheticEvent here, so fall back to state unless it's an actual string.
     const c = clean(typeof override === "string" ? override : name);
-    if (!/^[a-zA-Z0-9_]{1,25}$/.test(c)) { setResult({ error: "Names are 1–25 chars: letters, numbers, underscore." }); return; }
+    if (!/^[a-zA-Z0-9_]{1,20}$/.test(c)) { setResult({ error: "Names are 1–20 chars: letters, numbers, underscore." }); return; }
     setBusy(true);
     try {
       const r = await resolveName(c);
